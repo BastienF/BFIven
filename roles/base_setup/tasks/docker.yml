@@ -1,0 +1,31 @@
+---
+
+- name: Find kernel uname
+  shell: uname -r
+  register: uname_output
+  changed_when: false
+
+- name: Set kernel uname
+  set_fact: kernel_uname="{{ uname_output.stdout }}"
+
+- name: install docker packages
+  package: name="{{ item }}" state=latest
+  with_items: "{{ docker_packages }}"
+  become: true
+
+- name: Add docker repository key
+  apt_key: url="https://download.docker.com/linux/ubuntu/gpg" state=present
+  become: true
+
+- name: Find ubuntu version
+  shell: lsb_release -cs
+  register: ubuntu_version
+  changed_when: false
+
+- name: Add docker reporitory
+  apt_repository: repo="deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ubuntu_version.stdout }} stable" state=present
+  become: true
+
+- name: install docker
+  package: name="docker-ce" state=latest
+  become: true

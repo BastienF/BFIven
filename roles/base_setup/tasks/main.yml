@@ -1,0 +1,12 @@
+---
+
+- name: apt-get update
+  apt: update_cache=yes
+  become: true
+
+- name: install base packages
+  package: name="{{ item }}" state=latest
+  with_items: "{{ base_packages }}"
+  become: true
+
+- include: docker.yml

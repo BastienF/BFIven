@@ -1,0 +1,7 @@
+[all:vars]
+public_ip=5.39.90.137
+ansible_host="{{public_ip}}"
+
+[host]
+bfiven      ansible_port=2022 vm_ip=192.168.0.10
+bfivendev  ansible_port=6022 vm_ip=192.168.0.11

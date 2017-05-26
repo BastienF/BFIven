@@ -1,0 +1,12 @@
+base_packages:
+  - curl
+  - htop
+  - ncdu
+  - traceroute
+
+docker_packages:
+  - linux-image-extra-{{ kernel_uname }}
+  - linux-image-extra-virtual
+  - apt-transport-https
+  - ca-certificates
+  - software-properties-common
