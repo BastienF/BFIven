@@ -30,11 +30,14 @@
   package: name="docker-ce" state=latest
   become: true
 
-- name: install docker python modules
+- name: install pip
+  package: name="python-pip" state=latest
+  become: true
+
+- name: install docker python module
   become: true
   pip:
     name: "{{ item }}"
     state: present
   with_items:
-    - docker-py
-    - docker-compose
+    - docker
