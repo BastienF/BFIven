@@ -1,0 +1,6 @@
+reverse_proxyfied_domains :
+  - {
+      domain: somename.test,
+      redirect_server: perdu.com,
+      port: 80
+    }
