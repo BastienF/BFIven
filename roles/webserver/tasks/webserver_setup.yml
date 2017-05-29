@@ -1,0 +1,33 @@
+---
+
+- name: create path locations
+  file: path="{{ item }}" state=directory mode=0755
+  become: true
+  with_items:
+    - "{{ webserver_containers_conf_root_location }}"
+    - "{{ webserver_conf_location }}"
+    - "{{ webserver_static_content_location }}"
+    - "{{ webserver_nginx_configuration_location }}"
+    - "{{ webserver_nginx_servers_conf_location }}"
+
+- name: Create default index.html
+  template: src="index.html.j2" dest="{{ webserver_static_content_location }}/index.html" mode="u=rw,g=rw,o=r"
+  become: true
+
+- name: Upload nginx.conf
+  copy: src=nginx.conf dest="{{ webserver_nginx_conf_location }}" mode="u=rw,g=r,o=r"
+  become: true
+  notify: Start or restart nginx
+
+- name: Upload default.conf
+  template: src=nginx.default.conf.j2 dest="{{ webserver_nginx_servers_conf_location }}/{{ webserver_default_conf_file }}" mode="u=rw,g=r,o=r"
+  become: true
+  notify: Start or restart nginx
+
+- name: flush to evaluate nginx restart variable
+  meta: flush_handlers
+
+- include: handle_nginx_container.yml
+  vars:
+    docker_restart: false
+    docker_state: started

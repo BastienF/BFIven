@@ -1,0 +1,21 @@
+---
+
+reverse_proxy_domains :
+  - {
+      domain: benjamin-brabant.com,
+      redirect_server: 192.168.0.12,
+      http: {
+        port: 80
+      }
+    }
+  - {
+      domain: moi.ovh,
+      redirect_server: 192.168.0.10,
+      https: {
+        port: 8443,
+        certificate_mail: fiorentino.bastien@gmail.com
+      },
+      http: {
+        port: 8080
+      }
+    }

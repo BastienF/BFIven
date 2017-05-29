@@ -1,0 +1,85 @@
+---
+
+- name: create path locations
+  file: path="{{ item }}" state=directory mode=0755
+  become: true
+  with_items:
+    - "{{ reverse_proxy_nginx_servers_conf_location }}"
+    - "{{ reverse_proxy_letsencrypt_challenge_location }}"
+    - "{{ reverse_proxy_live_certs_location }}"
+
+- name: Upload nginx.conf
+  copy: src=nginx.conf dest="{{ reverse_proxy_nginx_conf_location }}" mode="u=rw,g=r,o=r"
+  become: true
+  notify: Start or restart nginx
+
+- name: List all servers conf files
+  shell: ls -1 {{ reverse_proxy_nginx_servers_conf_location }}
+  register: contents
+  changed_when: false
+
+- name: Set list of managed servers conf files
+  set_fact: managed_conf_files="{{ reverse_proxy_domains|map(attribute='domain')|map('regex_replace', '(.*)', '\\1.conf') | list }}"
+
+- name: Delete all unmanaged servers conf files
+  file: path={{ reverse_proxy_nginx_servers_conf_location }}/{{ item }} state=absent
+  with_items: "{{ contents.stdout_lines }}"
+  when: item not in managed_conf_files
+  notify: Start or restart nginx
+  become: true
+
+- name: List all certificates
+  shell: ls -1 {{ reverse_proxy_live_certs_location }}
+  register: prod_certificates
+  become: true
+  changed_when: false
+
+- name: Upload server confs
+  template: src="reverse_proxyfied_domain.conf.j2" dest="{{ reverse_proxy_nginx_servers_conf_location }}/{{ item.domain }}.conf" mode="u=rw,g=rw,o=r"
+  with_items: "{{ reverse_proxy_domains }}"
+  notify: Start or restart nginx
+  become: true
+
+- name: List all https domains
+  set_fact: reverse_proxyfied_https_domains="{{ reverse_proxy_domains|selectattr('https', 'defined') | list }}"
+
+- name: flush to evaluate nginx restart variable
+  meta: flush_handlers
+
+- include: handle_nginx_container.yml
+  vars:
+    docker_restart: false
+    docker_state: started
+
+- name: Generate lets encrypt certificates
+  docker_container:
+      name: "certbot"
+      image: certbot/certbot
+      state: started
+      interactive: true
+      command: certonly --webroot -w /var/www -d {{ item.domain }} -m {{ item.https.certificate_mail }} --agree-tos -n
+      detach: false
+      volumes:
+        - "{{ reverse_proxy_letsencrypt_location }}:/etc/letsencrypt"
+        - "{{ reverse_proxy_letsencrypt_challenge_location }}:/var/www"
+  with_items: "{{ reverse_proxyfied_https_domains }}"
+  when: prod_inventory and (item.domain not in prod_certificates.stdout_lines)
+  become: true
+
+- name: Generate fake certificates for dev env
+  shell: mkdir -p {{ reverse_proxy_live_certs_location }}/{{ item.domain }}; openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout {{ reverse_proxy_live_certs_location }}/{{ item.domain }}/privkey.pem -out {{ reverse_proxy_live_certs_location }}/{{ item.domain }}/fullchain.pem -subj "/CN={{ item.domain }}"
+  with_items: "{{ reverse_proxyfied_https_domains }}"
+  when: (not prod_inventory) and (item.domain not in prod_certificates.stdout_lines)
+  become: true
+
+- name: List all certificates with new certificates
+  shell: ls -1 {{ reverse_proxy_live_certs_location }}
+  register: prod_certificates
+  become: true
+  changed_when: false
+
+- name: Upload server confs with new certificates
+  template: src="reverse_proxyfied_domain.conf.j2" dest="{{ reverse_proxy_nginx_servers_conf_location }}/{{ item.domain }}.conf" mode="u=rw,g=rw,o=r"
+  with_items: "{{ reverse_proxy_domains }}"
+  notify: Start or restart nginx
+  become: true

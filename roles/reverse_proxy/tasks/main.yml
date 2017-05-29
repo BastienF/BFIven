@@ -1,0 +1,7 @@
+---
+
+- include: reverse_proxy_setup.yml
+  when: not (reverse_proxy_erase|default(false) |bool)
+
+- include: reverse_proxy_erase.yml
+  when: reverse_proxy_erase|default(false) |bool

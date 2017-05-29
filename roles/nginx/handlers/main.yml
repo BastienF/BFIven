@@ -1,4 +1,0 @@
----
-
-- name: Restart nginx
-  set_fact: restart_nginx=true

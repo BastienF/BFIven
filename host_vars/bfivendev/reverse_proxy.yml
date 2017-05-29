@@ -1,0 +1,19 @@
+reverse_proxy_domains :
+  - {
+      domain: toto.ovh,
+      redirect_server: perdu.com,
+      https: {
+        port: 443,
+        certificate_mail: moi@moi.ovh
+      },
+      http: {
+        port: 80
+      }
+    }
+  - {
+      domain: tata.ovh,
+      redirect_server: perdu.com,
+      http: {
+        port: 80
+      }
+    }

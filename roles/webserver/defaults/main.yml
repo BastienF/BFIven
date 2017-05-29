@@ -1,0 +1,16 @@
+---
+
+webserver_containers_conf_root_location: "/etc/containers"
+webserver_conf_location: "{{ webserver_containers_conf_root_location }}/webserver"
+
+webserver_static_content_location: "{{ webserver_conf_location }}/www/html"
+
+webserver_nginx_configuration_location: "{{ webserver_conf_location }}/nginx"
+webserver_nginx_conf_location: "{{ webserver_nginx_configuration_location }}/nginx.conf"
+webserver_nginx_servers_conf_location: "{{ webserver_nginx_configuration_location }}/conf.d"
+
+webserver_container_name: webserver
+
+webserver_default_conf_file: "default.conf"
+webserver_exposed_http_port: 8080
+webserver_exposed_https_port: 8443

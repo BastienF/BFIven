@@ -1,0 +1,7 @@
+---
+
+- include: webserver_setup.yml
+  when: not (webserver_erase|default(false) |bool)
+
+- include: webserver_erase.yml
+  when: webserver_erase|default(false) |bool

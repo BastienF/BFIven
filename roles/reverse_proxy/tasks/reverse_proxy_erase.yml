@@ -1,0 +1,10 @@
+---
+
+- include: handle_nginx_container.yml
+  vars:
+    docker_restart: false
+    docker_state: absent
+
+- name: Erase container data
+  file: path="{{ reverse_proxy_conf_location }}" state=absent
+  become: true

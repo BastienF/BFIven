@@ -1,0 +1,41 @@
+server {
+    listen       80;
+
+    server_name  {{ item.domain }};
+{% if item.https is defined %}
+    location /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt_challenge;
+    }
+{% endif %}
+    location / {
+        proxy_pass  http://{{ item.redirect_server }}:{{ item.http.port }};
+        proxy_set_header X-Real-IP          $remote_addr;
+        proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
+        proxy_set_header Host               $http_host;
+        proxy_set_header X-Forwarded-Host   $host;
+        proxy_set_header X-Forwarded-Server $host;
+    }
+}
+
+{% if item.https is defined %}
+{% if item.domain in prod_certificates.stdout_lines %}
+server {
+    listen 443 ssl;
+
+    ssl_certificate     certs/live/{{ item.domain }}/fullchain.pem;
+    ssl_certificate_key certs/live/{{ item.domain }}/privkey.pem;
+
+
+    server_name  {{ item.domain }} *.{{ item.domain }};
+
+    location / {
+        proxy_pass  https://{{ item.redirect_server }}:{{ item.https.port }};
+        proxy_set_header X-Real-IP          $remote_addr;
+        proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
+        proxy_set_header Host               $http_host;
+        proxy_set_header X-Forwarded-Host   $host;
+        proxy_set_header X-Forwarded-Server $host;
+    }
+}
+{% endif %}
+{% endif %}

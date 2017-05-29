@@ -1,6 +1,7 @@
 [all:vars]
 public_ip=192.168.10.10
 ansible_host="{{public_ip}}"
+prod_inventory=False
 
 [host]
 bfivendev   ansible_port=6022 vm_ip=192.168.0.11
