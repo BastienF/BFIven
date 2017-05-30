@@ -26,15 +26,28 @@
   apt_repository: repo="deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ubuntu_version.stdout }} stable" state=present
   become: true
 
-- name: install docker
+- name: Install docker
   package: name="docker-ce" state=latest
   become: true
 
-- name: install pip
+- name: Create allow containers communication service
+  copy: src="allow_containers_communication.service" dest="/etc/systemd/system/allow_containers_communication.service"
+  become: true
+  when: docker_allow_containers_communication
+
+- name: Launch allow containers communication service
+  systemd:
+    name: allow_containers_communication.service
+    state: started
+    enabled: True
+  become: true
+  when: docker_allow_containers_communication
+
+- name: Install pip
   package: name="python-pip" state=latest
   become: true
 
-- name: install docker python module
+- name: Install docker python module
   become: true
   pip:
     name: "{{ item }}"

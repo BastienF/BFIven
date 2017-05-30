@@ -1,0 +1,11 @@
+[Unit]
+Description=Allow local traffic on docker0 interface
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c "iptables -t filter -A INPUT -i docker0 -j ACCEPT"
+ExecStop=/bin/sh -c "iptables -t filter -D INPUT -i docker0 -j ACCEPT"
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

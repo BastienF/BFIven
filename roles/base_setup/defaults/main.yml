@@ -1,5 +1,7 @@
 ---
 
+docker_allow_containers_communication: true
+
 base_packages:
   - curl
   - htop
