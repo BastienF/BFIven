@@ -3,7 +3,8 @@
 - hosts: host
   vars_prompt:
       - name: "webserver_encrypted_by_ssh_priv"
-        prompt: 'Private ssh key used to crypt certificate key ? (exemple: /home/user/.ssh/id_rsa)'
+        prompt: 'Private ssh key used to crypt certificate key ?'
+        default: " /Users/bastien/.ssh/custom_cloud"
         private: no
       - name: "webserver_encrypted_by_ssh_priv_passphrase"
         prompt: "Passphrase of private ssh key used to crypt certificate key ?"

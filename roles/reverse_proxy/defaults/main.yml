@@ -1,7 +1,7 @@
 ---
 
 reverse_proxy_containers_conf_root_location: "/etc/containers"
-reverse_proxy_conf_location: "{{ webserver_containers_conf_root_location }}/reverse_proxy"
+reverse_proxy_conf_location: "{{ reverse_proxy_containers_conf_root_location }}/reverse_proxy"
 
 reverse_proxy_letsencrypt_challenge_location: "{{ reverse_proxy_conf_location }}/www/letsencrypt_challenge"
 reverse_proxy_cetificates_location: "{{ reverse_proxy_conf_location }}/certs"
