@@ -1,0 +1,21 @@
+server {
+    listen       80;
+    server_name  {{ item }};
+
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+
+    ssl_certificate     /etc/nginx/certs/{{ webserver_certified_hostname }}/fullchain.pem;
+    ssl_certificate_key /etc/nginx/certs/{{ webserver_certified_hostname }}/privkey.pem;
+    ssl_password_file   /etc/nginx/certs/{{ webserver_certified_hostname }}/privkey.pass.pem;
+
+    server_name {{ item }};
+
+    location / {
+        root   /var/www/html;
+        index  index.html index.htm;
+    }
+}

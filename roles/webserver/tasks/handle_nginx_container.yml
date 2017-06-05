@@ -4,6 +4,7 @@
   become: true
   docker_container:
     name: "{{ webserver_container_name }}"
+    hostname: "{{ webserver_container_name }}"
     image: nginx
     state: "{{ docker_state | default('started') }}"
     restart: "{{ docker_restart | default(false) | bool }}"
@@ -14,3 +15,4 @@
       - "{{ webserver_static_content_location }}:/var/www/html:ro"
       - "{{ webserver_nginx_conf_location }}:/etc/nginx/nginx.conf:ro"
       - "{{ webserver_nginx_servers_conf_location }}:/etc/nginx/conf.d:ro"
+      - "{{ webserver_certificates_location }}:/etc/nginx/certs:ro"

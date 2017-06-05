@@ -1,13 +1,25 @@
 reverse_proxy_domains :
   - {
       domain: dev.moi.ovh,
-      redirect_server: 192.168.0.10,
+      redirect_server: bfiven,
       https: {
         port: 8443,
-        certificate_mail: moi@moi.ovh
+        certificate_mail: moi@moi.ovh,
+        certification_authority_common_name: BFIvenCA
       },
       http: {
         port: 8080
+      }
+    }
+  - {
+      domain: bbr.ovh,
+      redirect_server: bbright,
+      https: {
+        port: 443,
+        certificate_mail: moi@moi.ovh,
+      },
+      http: {
+        port: 80
       }
     }
   - {
@@ -17,3 +29,9 @@ reverse_proxy_domains :
         port: 80
       }
     }
+
+reverse_proxy_local_name_resolution: >
+  {
+    "bbright": "192.168.0.11",
+    "bfiven": "192.168.0.10"
+  }

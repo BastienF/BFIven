@@ -13,9 +13,16 @@ reverse_proxy_domains :
       redirect_server: 192.168.0.10,
       https: {
         port: 8443,
-        certificate_mail: fiorentino.bastien@gmail.com
+        certificate_mail: fiorentino.bastien@gmail.com,
+        certification_authority_common_name: BFIvenCA
       },
       http: {
         port: 8080
       }
     }
+
+reverse_proxy_local_name_resolution: >
+  {
+    "bbright": "192.168.0.12",
+    "bfiven": "192.168.0.10"
+  }

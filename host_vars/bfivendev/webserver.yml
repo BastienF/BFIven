@@ -1,0 +1,6 @@
+---
+
+webserver_certified_hostname: "bfiven"
+
+webserver_serving_domains:
+  - "dev.moi.ovh"

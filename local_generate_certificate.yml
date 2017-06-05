@@ -1,0 +1,36 @@
+---
+
+- hosts: localhost
+  serial: 1
+  connection: local
+  vars_prompt:
+    - name: "certificate_type"
+      prompt: "Type of certificate ? (root, intermediate, server)"
+      default: "server"
+      private: no
+    - name: "ca_manager_cn_name"
+      prompt: "Certificate CN name ?"
+      private: no
+    - name: "ca_manager_subject_without_cn"
+      prompt: "Other subject attributes ?"
+      default: "/C=FR/ST=IdF/L=Paris/O=CustomCloud"
+      private: no
+    - name: "ca_manager_encrypt_by_ssh_pub"
+      prompt: "Optional public ssh key to crypt certificate key ? (exemple: /home/user/.ssh/id_rsa.pub)"
+      private: no
+    - name: "ca_manager_signin_ca_cn_name"
+      prompt: "CN name of signin CA ? (empty if root CA)"
+      private: no
+    - name: "ca_manager_signin_ca_decrypt_by_ssh_priv"
+      prompt: 'Optional private ssh key used to crypt CA key ? (empty if root CA - exemple: /home/user/.ssh/id_rsa)'
+      private: no
+    - name: "ca_manager_signin_ca_decrypt_by_ssh_priv_passphrase"
+      prompt: "Optional passphrase of private ssh key used to crypt CA key ? (empty if root CA)"
+  vars:
+    - ca_manager_issue_root_ca: "{{ certificate_type == 'root' }}"
+    - ca_manager_issue_intermediate_ca: "{{ certificate_type == 'intermediate' }}"
+    - ca_manager_issue_certificate: "{{ certificate_type == 'server' }}"
+  roles:
+  - {
+      role: certificate_authority_manager
+    }

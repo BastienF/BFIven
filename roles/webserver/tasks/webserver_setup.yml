@@ -9,6 +9,7 @@
     - "{{ webserver_static_content_location }}"
     - "{{ webserver_nginx_configuration_location }}"
     - "{{ webserver_nginx_servers_conf_location }}"
+    - "{{ webserver_certificates_location }}"
 
 - name: Create default index.html
   template: src="index.html.j2" dest="{{ webserver_static_content_location }}/index.html" mode="u=rw,g=rw,o=r"
@@ -22,6 +23,28 @@
 - name: Upload default.conf
   template: src=nginx.default.conf.j2 dest="{{ webserver_nginx_servers_conf_location }}/{{ webserver_default_conf_file }}" mode="u=rw,g=r,o=r"
   become: true
+  notify: Start or restart nginx
+
+- name: Create certificate directories by domain
+  file: path="{{ webserver_certificates_location }}/{{ webserver_certified_hostname }}" state=directory mode=0755
+  become: true
+
+- name: Upload all ssl certificates key
+  copy: src="{{ playbook_dir }}/certificates/{{ webserver_certified_hostname }}/private/{{ webserver_certified_hostname }}.key.pem" dest="{{ webserver_certificates_location }}/{{ webserver_certified_hostname }}/privkey.pem" mode="u=r,g=,o="
+  become: true
+  notify: Start or restart nginx
+
+- name: Upload all ssl certificates cert
+  copy: src="{{ playbook_dir }}/certificates/{{ webserver_certified_hostname }}/certs/{{ webserver_certified_hostname }}-chain.cert.pem" dest="{{ webserver_certificates_location }}/{{ webserver_certified_hostname }}/fullchain.pem" mode="u=r,g=,o="
+  become: true
+  notify: Start or restart nginx
+
+- include: upload_certificate_pass_file.yml
+
+- name: Upload all servers conf
+  template: src=server.conf.j2 dest="{{ webserver_nginx_servers_conf_location }}/{{ item }}.conf" mode="u=rw,g=,o="
+  become: true
+  with_items: "{{ webserver_serving_domains }}"
   notify: Start or restart nginx
 
 - name: flush to evaluate nginx restart variable

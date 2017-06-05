@@ -7,11 +7,12 @@
     image: nginx
     state: "{{ docker_state | default('started') }}"
     restart: "{{ docker_restart | default(false) | bool }}"
+    etc_hosts: "{{ reverse_proxy_local_name_resolution }}"
     ports:
       - "{{ reverse_proxy_exposed_http_port }}:80"
       - "{{ reverse_proxy_exposed_https_port }}:443"
     volumes:
       - "{{ reverse_proxy_nginx_conf_location }}:/etc/nginx/nginx.conf:ro"
       - "{{ reverse_proxy_nginx_servers_conf_location }}:/etc/nginx/conf.d:ro"
-      - "{{ reverse_proxy_letsencrypt_location }}:/etc/nginx/certs:ro"
+      - "{{ reverse_proxy_cetificates_location }}:/etc/nginx/certs:ro"
       - "{{ reverse_proxy_letsencrypt_challenge_location }}:/var/www/letsencrypt_challenge:ro"

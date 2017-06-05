@@ -1,6 +1,0 @@
----
-
-- hosts: host
-  roles:
-    - role: reverse_proxy
-    - role: webserver

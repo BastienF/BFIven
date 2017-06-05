@@ -1,0 +1,37 @@
+---
+
+- set_fact:
+    domain_cert_passphrase: ""
+    ssh_priv_pass_decipher: ""
+
+- name: Define ciphering parameters when passphrase provided
+  set_fact:
+    ssh_priv_pass_decipher: "-passin pass:'{{ webserver_encrypted_by_ssh_priv_passphrase }}'"
+  no_log: true
+  when: webserver_encrypted_by_ssh_priv_passphrase is defined and webserver_encrypted_by_ssh_priv_passphrase|trim != ""
+
+- name: Decrypt passphrase file
+  shell: "openssl rsautl -decrypt -oaep -inkey {{ webserver_encrypted_by_ssh_priv }} -in {{ playbook_dir }}/certificates/{{ webserver_certified_hostname }}/private/{{ webserver_certified_hostname }}.key.pass.ssl {{ ssh_priv_pass_decipher }}"
+  register: decrypted_pass_output
+  delegate_to: localhost
+  no_log: true
+  changed_when: false
+
+- set_fact:
+    domain_cert_passphrase: "{{ decrypted_pass_output.stdout }}"
+  no_log: true
+
+- name: Check if pass already present
+  command: grep -q "{{ domain_cert_passphrase }}" "{{ webserver_certificates_location }}/{{ webserver_certified_hostname }}/privkey.pass.pem"
+  register: check_pass
+  ignore_errors: true
+  become: true
+  no_log: true
+  changed_when: false
+
+- name: Upload certificate key pass file
+  shell: echo "{{ domain_cert_passphrase }}" > "{{ webserver_certificates_location }}/{{ webserver_certified_hostname }}/privkey.pass.pem"; chmod 400 "{{ webserver_certificates_location }}/{{ webserver_certified_hostname }}/privkey.pass.pem"
+  become: true
+  notify: Start or restart nginx
+  no_log: true
+  when: check_pass.rc != 0

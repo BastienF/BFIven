@@ -19,6 +19,15 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       vb.memory = 2048
     end
   end
+
+  config.vm.define "bbr" do |config|
+      config.vm.host_name = "bbr"
+      config.vm.network "private_network", ip: "#{@subnet}.11"
+      config.vm.provider :virtualbox do |vb|
+        vb.customize ["modifyvm", :id, "--cpus", 4]
+        vb.memory = 2048
+      end
+    end
   config.vm.provision "shell", :privileged => true, inline: "apt-get install -y python"
   config.vm.provision "shell", :privileged => true, inline: "source <(curl -s https://raw.githubusercontent.com/BastienF/CustomCloud/master/init-ansible-debian.sh)"
   config.vm.provision "shell", :privileged => true, inline: "sed -i 's/Port 22/Port 6022/g' /etc/ssh/sshd_config; systemctl restart sshd"

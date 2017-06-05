@@ -4,8 +4,9 @@ reverse_proxy_containers_conf_root_location: "/etc/containers"
 reverse_proxy_conf_location: "{{ webserver_containers_conf_root_location }}/reverse_proxy"
 
 reverse_proxy_letsencrypt_challenge_location: "{{ reverse_proxy_conf_location }}/www/letsencrypt_challenge"
-reverse_proxy_letsencrypt_location: "{{ reverse_proxy_conf_location }}/letsencrypt"
-reverse_proxy_live_certs_location: "{{ reverse_proxy_letsencrypt_location }}/live"
+reverse_proxy_cetificates_location: "{{ reverse_proxy_conf_location }}/certs"
+reverse_proxy_live_certs_location: "{{ reverse_proxy_cetificates_location }}/live"
+reverse_proxy_trusted_ca_location: "{{ reverse_proxy_cetificates_location }}/certificate_authorities"
 
 reverse_proxy_nginx_configuration_location: "{{ reverse_proxy_conf_location }}/nginx"
 reverse_proxy_nginx_conf_location: "{{ reverse_proxy_nginx_configuration_location }}/nginx.conf"
@@ -37,3 +38,11 @@ reverse_proxy_domains : []
 #        port: 80
 #      }
 #    }
+
+reverse_proxy_local_name_resolution: []
+##Exemple
+#reverse_proxy_local_name_resolution: >
+#  {
+#    "bbright": "192.168.0.11",
+#    "bfiven": "192.168.0.10"
+#  }
