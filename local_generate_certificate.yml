@@ -30,7 +30,10 @@
     - ca_manager_issue_root_ca: "{{ certificate_type == 'root' }}"
     - ca_manager_issue_intermediate_ca: "{{ certificate_type == 'intermediate' }}"
     - ca_manager_issue_certificate: "{{ certificate_type == 'server' }}"
-  roles:
-  - {
-      role: certificate_authority_manager
-    }
+  tasks:
+    - name: Install galaxy role
+      command: ansible-galaxy install BastienF.certificate_authority_manager
+    - name: Include BastienF.certificate_authority_manager
+      static: no
+      include_role:
+        name: BastienF.certificate_authority_manager
