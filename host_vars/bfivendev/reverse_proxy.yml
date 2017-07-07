@@ -1,5 +1,17 @@
 reverse_proxy_domains :
   - {
+      domain: moi.ovh,
+      redirect_server: bfiven,
+      https: {
+        port: 8443,
+        certificate_mail: moi@moi.ovh,
+        certification_authority_common_name: BFIvenCA
+      },
+      http: {
+        port: 8080
+      }
+    }
+  - {
       domain: dev.moi.ovh,
       redirect_server: bfiven,
       https: {

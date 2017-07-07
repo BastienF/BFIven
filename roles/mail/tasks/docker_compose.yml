@@ -1,0 +1,122 @@
+---
+
+- name: "{{ task_name }} mail containers"
+  docker_service:
+    pull: true
+    project_name: mail
+    restarted: "{{ docker_restart|default(false)|bool }}"
+    state: "{{ docker_state|default('present') }}"
+    stopped: no
+    definition:
+      version: '2'
+      services:
+        smtp:
+          image: bastienf/smtp
+          ports:
+            - '25:25'
+            - '587:587'
+          depends_on:
+            - spamassassin
+            - opendkim
+            - clamav
+          volumes:
+            - "{{ mail_certificate_volume }}"
+            - "{{ mail_certificate_key_volume }}"
+          environment:
+            DOMAIN: "{{ mail_domain }}"
+            USERS: |
+              {% for user in mail_users %}
+              {{ user.username }}
+              {% endfor %}
+            ALIASES: |
+              {% for user in mail_users %}
+              {% for alias in user.aliases %}
+              {{ alias }}@{{ mail_domain }} {{ user.username }}@{{ mail_domain }}
+              {% endfor %}
+              {% endfor %}
+            # the $ symbol must be escaped with another $
+            ALIASES_REGEX: |
+              {% for user in mail_users %}
+              {% for alias_reg in user.aliases_regex %}
+              /{{ alias_reg }}@{{ mail_domain }}/ {{ user.username }}@{{ mail_domain }}
+              {% endfor %}
+              {% endfor %}
+        imap:
+          image: bastienf/imap
+          ports:
+            - '143:143'
+            - '993:993'
+          volumes:
+            - "{{ mail_certificate_volume }}"
+            - "{{ mail_certificate_key_volume }}"
+            - "{{ mail_mailboxes_volume }}"
+          environment:
+            # you can generate passwords with 'doveadm pw'
+            # https://wiki.dovecot.org/Tools/Doveadm/Pw
+            # don't forget that the $ symbol must be escaped with another $
+            PASSWD_DB: |
+              {% for user in mail_users %}
+              {{ user.username }}@{{ mail_domain }}:{{ user.password_hash|replace("$", "$$") }}
+              {% endfor %}
+        lmtp:
+          image: bastienf/lmtp
+          volumes:
+            - "{{ mail_mailboxes_volume }}"
+            - "{{ mail_sieveboxes_volume }}"
+          environment:
+            POSTMASTER_ADDRESS: "postmaster@{{ mail_domain }}"
+        sasl:
+          image: bastienf/sasl
+          ports:
+            - '9376:9376'
+          environment:
+            # you can generate passwords with 'doveadm pw'
+            # https://wiki.dovecot.org/Tools/Doveadm/Pw
+            # don't forget that the $ symbol must be escaped with another $
+            PASSWD_DB: |
+              {% for user in mail_users %}
+              {{ user.username }}@{{ mail_domain }}:{{ user.password_hash|replace("$", "$$") }}
+              {% endfor %}
+        sieve:
+          image: bastienf/sieve
+          ports:
+            - '4190:4190'
+          environment:
+            # you can generate passwords with 'doveadm pw'
+            # https://wiki.dovecot.org/Tools/Doveadm/Pw
+            # don't forget that the $ symbol must be escaped with another $
+            PASSWD_DB: |
+              {% for user in mail_users %}
+              {{ user.username }}@{{ mail_domain }}:{{ user.password_hash|replace("$", "$$") }}
+              {% endfor %}
+          volumes:
+            - "{{ mail_certificate_volume }}"
+            - "{{ mail_certificate_key_volume }}"
+            - "{{ mail_sieveboxes_volume }}"
+        opendkim:
+          image: bastienf/opendkim
+          volumes:
+            - "{{ mail_dkim_private_key_volume }}"
+          environment:
+            DOMAIN: "{{ mail_domain }}"
+        spamassassin:
+          image: bastienf/spamassassin
+        clamav:
+          image: bastienf/clamav
+        clamavmilter:
+          image: bastienf/clamav-milter
+  become: true
+  register: output
+
+- assert:
+    that:
+      - "smtp.mail_smtp_1.state.running"
+      - "imap.mail_imap_1.state.running"
+      - "lmtp.mail_lmtp_1.state.running"
+      - "sasl.mail_sasl_1.state.running"
+      - "sieve.mail_sieve_1.state.running"
+      - "opendkim.mail_opendkim_1.state.running"
+      - "spamassassin.mail_spamassassin_1.state.running"
+      - "clamav.mail_clamav_1.state.running"
+      - "clamavmilter.mail_clamavmilter_1.state.running"
+  when: (docker_state|default("present")) == "present"

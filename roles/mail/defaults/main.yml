@@ -1,0 +1,25 @@
+mail_domain: moi.ovh
+
+mail_users:
+  - {
+    username: bfiorentino,
+    password_hash: "{SHA512-CRYPT}<PasswordHash>",
+    aliases: ["bastien.fiorentino", "bastien", "bfi", "b"],
+    aliases_regex: ["^b_.+", "^bfi_.+", "^bfiorentino_.+"]
+  }
+  - {
+    username: dev,
+    password_hash: "{SHA512-CRYPT}<PasswordHash>",
+    aliases: [],
+    aliases_regex: []
+  }
+
+mail_containers_conf_root_location: "/etc/containers"
+mail_conf_location: "{{ mail_containers_conf_root_location }}/mail"
+mail_mailboxes_location: "{{ mail_conf_location }}/mailboxes"
+mail_sieveboxes_location: "{{ mail_conf_location }}/sieveboxes"
+
+mail_certificate_location: "{{ mail_containers_conf_root_location }}/reverse_proxy/certs/live/mail.{{ mail_domain }}/fullchain.pem"
+mail_certificate_key_location: "{{ mail_containers_conf_root_location }}/reverse_proxy/certs/live/mail.{{ mail_domain }}/privkey.pem"
+
+mail_dkim_private_key_location: "{{ mail_conf_location }}/certs/dkim/mail.private"

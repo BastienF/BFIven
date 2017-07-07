@@ -20,6 +20,13 @@ reverse_proxy_domains :
         port: 8080
       }
     }
+  - {
+      domain: mail.moi.ovh,
+      https: {
+        certificate_mail: fiorentino.bastien@gmail.com,
+        certificate_only: True
+      }
+    }
 
 reverse_proxy_local_name_resolution: >
   {

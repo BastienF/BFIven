@@ -1,0 +1,7 @@
+---
+
+- include: ../tasks/docker_compose.yml
+  vars:
+    docker_restart: true
+    docker_state: present
+    task_name: "Restart"

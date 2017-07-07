@@ -1,0 +1,8 @@
+mail_certificate_key_volume: "{{ mail_certificate_key_location }}:/certs/key.pem:ro"
+mail_certificate_volume: "{{ mail_certificate_location }}:/certs/cert.pem:ro"
+mail_mailboxes_volume: "{{ mail_mailboxes_location }}:/var/mail/vmail/mailboxes:rw"
+mail_sieveboxes_volume: "{{ mail_sieveboxes_location }}:/var/mail/vmail/sieveboxes:rw"
+mail_dkim_private_key_volume: "{{ mail_dkim_private_key_location }}:/certs/key.pem:ro"
+
+mail_docker_user: "5000"
+mail_docker_group: "5000"

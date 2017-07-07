@@ -2,6 +2,7 @@
 public_ip=5.39.90.137
 ansible_host="{{public_ip}}"
 prod_inventory=True
+ansible_ssh_private_key_file=/Users/bastien/.ssh/custom_cloud
 
 [host]
 bfiven ansible_port=2022 vm_ip=192.168.0.10

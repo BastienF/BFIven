@@ -1,0 +1,5 @@
+---
+
+- hosts: host
+  roles:
+    - role: mail

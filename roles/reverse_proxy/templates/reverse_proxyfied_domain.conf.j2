@@ -7,6 +7,7 @@ server {
         root /var/www/letsencrypt_challenge;
     }
 {% endif %}
+{% if not (item.https is defined) or not (item.https.certificate_only|default(false)) %}
     location / {
         proxy_pass  http://{{ item.redirect_server }}:{{ item.http.port }};
         proxy_set_header X-Real-IP          $remote_addr;
@@ -15,9 +16,11 @@ server {
         proxy_set_header X-Forwarded-Host   $host;
         proxy_set_header X-Forwarded-Server $host;
     }
+{% endif %}
 }
 
 {% if item.https is defined %}
+{% if not (item.https.certificate_only|default(false)) %}
 {% if item.domain in prod_certificates.stdout_lines %}
 server {
     listen 443 ssl;
@@ -52,5 +55,6 @@ server {
         proxy_set_header X-Forwarded-Server $host;
     }
 }
+{% endif %}
 {% endif %}
 {% endif %}

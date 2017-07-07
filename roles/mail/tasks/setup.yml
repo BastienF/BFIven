@@ -1,0 +1,44 @@
+---
+
+- name: Check that certificate exists
+  stat:
+    path: "{{ mail_certificate_location }}"
+  register: certificate_stat
+
+- name: Check that certificate key exists
+  stat:
+    path: "{{ mail_certificate_key_location }}"
+  register: certificate_key_stat
+
+- fail:
+    msg: "Specified certificate or certificate key does not exist"
+  when: (not certificate_stat.stat.exists) or (not certificate_key_stat.stat.exists)
+
+- name: Create path locations
+  file: path="{{ item }}" state=directory mode=0755
+  become: true
+  with_items:
+    - "{{ mail_containers_conf_root_location }}"
+    - "{{ mail_conf_location }}"
+    - "{{ mail_dkim_private_key_location|dirname }}"
+
+- name: Set ownership of volume to docker user
+  file: dest="{{ item }}" state=directory owner="{{ mail_docker_user }}" group="{{ mail_docker_group }}" mode=0750 recurse=yes
+  become: true
+  with_items:
+    - "{{ mail_mailboxes_location }}"
+    - "{{ mail_sieveboxes_location }}"
+  notify: Restart mail containers
+
+- name: Upload dkim private key
+  copy: src=mail.private dest="{{ mail_dkim_private_key_location }}" mode=0500
+  become: true
+  notify: Restart mail containers
+
+- meta: flush_handlers
+
+- include: docker_compose.yml
+  vars:
+    docker_restart: false
+    docker_state: present
+    task_name: "Start"

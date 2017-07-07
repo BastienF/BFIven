@@ -1,0 +1,15 @@
+---
+
+- include: docker_compose.yml
+  vars:
+    docker_restart: false
+    docker_state: absent
+    task_name: "Stop"
+
+- name: erase path locations
+  file: path="{{ item }}" state=absent mode=0755
+  become: true
+  with_items:
+    - "{{ mail_conf_location }}"
+    - "{{ mail_mailboxes_location }}"
+    - "{{ mail_sieveboxes_location }}"

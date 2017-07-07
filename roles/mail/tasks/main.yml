@@ -1,0 +1,7 @@
+---
+
+- include: setup.yml
+  when: not (mail_erase|default(false) |bool)
+
+- include: erase.yml
+  when: mail_erase|default(false) |bool
