@@ -1,0 +1,7 @@
+- include: decrypt_disk.yml
+
+- name: Format disk
+  become: true
+  filesystem:
+    fstype: "{{ dm_fstype }}"
+    dev: "/dev/mapper/{{ dm_decrypted_disk_name }}"

@@ -1,0 +1,12 @@
+---
+
+- name: Decipher disk pass
+  changed_when: false
+  delegate_to: localhost
+  register: openssl_output
+  shell: "cat {{ dm_ciphered_pass_file }} | openssl rsautl -decrypt -oaep -inkey {{ dm_ciphering_ssh_priv_key }} -passin pass:'{{ dm_ciphering_ssh_priv_key_pass }}'"
+  no_log: true
+
+- set_fact:
+    dm_disk_pass_deciphered: "{{ openssl_output.stdout }}"
+  no_log: true

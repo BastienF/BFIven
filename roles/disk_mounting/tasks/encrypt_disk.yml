@@ -1,0 +1,17 @@
+---
+
+- name: Test if disk is encrypted
+  shell: "blkid {{ dm_raw_disk_path }}"
+  become: true
+  register: encrypted_test
+  changed_when: false
+  failed_when: false
+
+- name: Encrypt disk
+  shell: "cryptsetup -y luksFormat -c aes-xts-plain64 -s 512 -h sha512 --batch-mode {{ dm_raw_disk_path }} --key-file /dev/stdin <<< '{{ dm_disk_pass_deciphered }}'"
+  become: true
+  no_log: true
+  args:
+    executable: /bin/bash
+  when: encrypted_test.rc == 2
+

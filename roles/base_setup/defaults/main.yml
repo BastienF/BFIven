@@ -8,6 +8,7 @@ base_packages:
   - ncdu
   - traceroute
   - tree
+  - bash
 
 docker_packages:
   - linux-image-extra-{{ kernel_uname }}

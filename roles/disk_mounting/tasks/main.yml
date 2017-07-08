@@ -1,0 +1,9 @@
+---
+
+- include: load_disk_pass.yml
+
+- include: encrypt_disk.yml
+
+- include: create_file_system.yml
+
+- include: mount_disk.yml

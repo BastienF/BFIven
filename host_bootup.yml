@@ -5,5 +5,4 @@
       - name: "dm_ciphering_ssh_priv_key_pass"
         prompt: 'Passphrase of private ssh key ?'
   roles:
-    - role: base_setup
     - role: disk_mounting

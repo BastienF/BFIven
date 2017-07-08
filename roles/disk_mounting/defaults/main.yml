@@ -1,0 +1,11 @@
+---
+
+#dm_ciphering_ssh_priv_key_pass: "<PASSWORD>"
+
+dm_ciphering_ssh_pub_key: "/Users/bastien/.ssh/custom_cloud.pub"
+dm_ciphering_ssh_priv_key: "/Users/bastien/.ssh/custom_cloud"
+dm_ciphered_pass_file: "/Users/bastien/.ssh/custom_cloud.pass.ssl"
+
+dm_mount_disk_path: "/data"
+dm_fstype: "ext4"
+dm_raw_disk_path: "/dev/sdb"

@@ -1,0 +1,17 @@
+- name: Generate certificat dir tree
+  become: true
+  file:
+    path: "{{ dm_mount_disk_path }}"
+    state: directory
+
+- name: Test if disk is already mounted
+  shell: "cat /proc/mounts | grep -q '/dev/mapper/{{ dm_decrypted_disk_name }}'"
+  become: true
+  register: mount_test
+  changed_when: false
+  failed_when: false
+
+- name: Mount disk
+  become: true
+  shell: "mount -t {{ dm_fstype }} /dev/mapper/{{ dm_decrypted_disk_name }} /{{ dm_mount_disk_path }}"
+  when: mount_test.rc != 0

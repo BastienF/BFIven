@@ -1,0 +1,9 @@
+- name: Open crypted disk
+  shell: "cryptsetup luksOpen {{ dm_raw_disk_path }} {{ dm_decrypted_disk_name }} --key-file /dev/stdin <<< '{{ dm_disk_pass_deciphered }}'"
+  become: true
+  register: open_output
+  changed_when: open_output.rc != 5
+  failed_when: open_output.rc != 5 and open_output.rc != 0
+  no_log: true
+  args:
+    executable: /bin/bash
