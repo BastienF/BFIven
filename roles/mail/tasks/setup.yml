@@ -31,7 +31,7 @@
   notify: Restart mail containers
 
 - name: Upload dkim private key
-  copy: src=mail.private dest="{{ mail_dkim_private_key_location }}" mode=0500
+  copy: src=mail.private dest="{{ mail_dkim_private_key_location }}" mode=0750
   become: true
   notify: Restart mail containers
 
