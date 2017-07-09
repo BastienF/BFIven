@@ -7,6 +7,7 @@ reverse_proxy_letsencrypt_challenge_location: "{{ reverse_proxy_conf_location }}
 reverse_proxy_cetificates_location: "{{ reverse_proxy_conf_location }}/certs"
 reverse_proxy_live_certs_location: "{{ reverse_proxy_cetificates_location }}/live"
 reverse_proxy_trusted_ca_location: "{{ reverse_proxy_cetificates_location }}/certificate_authorities"
+reverse_proxy_use_staging_cert: false
 
 reverse_proxy_nginx_configuration_location: "{{ reverse_proxy_conf_location }}/nginx"
 reverse_proxy_nginx_conf_location: "{{ reverse_proxy_nginx_configuration_location }}/nginx.conf"

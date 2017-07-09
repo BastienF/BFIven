@@ -87,7 +87,7 @@
       image: certbot/certbot
       state: started
       interactive: true
-      command: certonly --webroot -w /var/www -d {{ item.domain }} -m {{ item.https.certificate_mail }} --agree-tos -n
+      command: "certonly --webroot -w /var/www -d {{ item.domain }} -m {{ item.https.certificate_mail }} {{ '--staging' if (reverse_proxy_use_staging_cert|default(false)) else '' }} --agree-tos -n"
       detach: false
       volumes:
         - "{{ reverse_proxy_cetificates_location }}:/etc/letsencrypt"
