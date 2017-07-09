@@ -1,18 +1,14 @@
 mail_domain: moi.ovh
 
-mail_users:
-  - {
-    username: bfiorentino,
-    password_hash: "{SHA512-CRYPT}<PasswordHash>",
-    aliases: ["bastien.fiorentino", "bastien", "bfi", "b"],
-    aliases_regex: ["^b_.+", "^bfi_.+", "^bfiorentino_.+"]
-  }
-  - {
-    username: dev,
-    password_hash: "{SHA512-CRYPT}<PasswordHash>",
-    aliases: [],
-    aliases_regex: []
-  }
+mail_users: []
+
+#mail_users:
+#  - {
+#    username: bfiorentino,
+#    password_hash: "{SHA512-CRYPT}$7$P8ooOOplljj$KF7788kjj$hkjh7jghjg.R4.bE1S50",
+#    aliases: ["bastien.fiorentino", "bastien", "bfi", "b"],
+#    aliases_regex: ["^b_.+", "^bfi_.+", "^bfiorentino_.+"]
+#  }
 
 mail_containers_conf_root_location: "/etc/containers"
 mail_containers_data_root_location: "/data/containers"

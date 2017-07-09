@@ -1,0 +1,15 @@
+---
+
+mail_users:
+  - {
+    username: bfiorentino,
+    password_hash: "{{ mail_bfi_password }}",
+    aliases: ["bastien.fiorentino", "bastien", "bfi", "b"],
+    aliases_regex: ["^b_.+", "^bfi_.+", "^bfiorentino_.+"]
+  }
+  - {
+    username: dev,
+    password_hash: "{{ mail_dev_password }}",
+    aliases: [],
+    aliases_regex: []
+  }
