@@ -19,7 +19,9 @@
   become: true
   with_items:
     - "{{ mail_containers_conf_root_location }}"
+    - "{{ mail_containers_data_root_location }}"
     - "{{ mail_conf_location }}"
+    - "{{ mail_data_location }}"
     - "{{ mail_dkim_private_key_location|dirname }}"
 
 - name: Set ownership of volume to docker user

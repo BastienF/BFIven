@@ -15,9 +15,11 @@ mail_users:
   }
 
 mail_containers_conf_root_location: "/etc/containers"
+mail_containers_data_root_location: "/data/containers"
 mail_conf_location: "{{ mail_containers_conf_root_location }}/mail"
-mail_mailboxes_location: "{{ mail_conf_location }}/mailboxes"
-mail_sieveboxes_location: "{{ mail_conf_location }}/sieveboxes"
+mail_data_location: "{{ mail_containers_data_root_location }}/mail"
+mail_mailboxes_location: "{{ mail_data_location }}/mailboxes"
+mail_sieveboxes_location: "{{ mail_data_location }}/sieveboxes"
 
 mail_certificate_location: "{{ mail_containers_conf_root_location }}/reverse_proxy/certs/live/mail.{{ mail_domain }}/fullchain.pem"
 mail_certificate_key_location: "{{ mail_containers_conf_root_location }}/reverse_proxy/certs/live/mail.{{ mail_domain }}/privkey.pem"
