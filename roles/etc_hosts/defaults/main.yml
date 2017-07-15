@@ -1,0 +1,6 @@
+---
+etc_hosts_domains: {}
+
+#etc_hosts_domains:
+#  mail.moi.ovh: 127.0.0.1
+#  moi.ovh: 127.0.0.1

@@ -1,0 +1,7 @@
+---
+
+- name: Upload /etc/hosts
+  become: true
+  template:
+    src: "etc_hosts.j2"
+    dest: "/etc/hosts"
