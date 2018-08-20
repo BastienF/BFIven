@@ -1,0 +1,12 @@
+---
+
+- name: create password_manager local directories
+  become: true
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: true
+  with_items:
+    - "{{ password_manager_data_location }}"
+
+- include_tasks: run_container.yml

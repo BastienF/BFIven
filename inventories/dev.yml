@@ -1,0 +1,9 @@
+---
+
+all:
+  hosts:
+    192.168.0.10:
+      ansible_ssh_user: ansible
+      ansible_port: 6022
+      is_prod: false
+      domain: "moi.ovh.local"

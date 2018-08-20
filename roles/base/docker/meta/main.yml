@@ -1,0 +1,7 @@
+---
+
+dependencies:
+    - role: base/ansible_dependencies
+      dependency_roles:
+        - src: "git+https://github.com/BastienF/ansible-docker"
+          version: master

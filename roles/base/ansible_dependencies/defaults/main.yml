@@ -1,0 +1,7 @@
+---
+
+dependency_roles: []
+
+#dependency_roles:
+#  - src: "git+https://github.com/BastienF/ansible-traefik-in-docker"
+#    version: master

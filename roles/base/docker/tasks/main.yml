@@ -1,0 +1,6 @@
+---
+
+- include_role:
+    name: .galaxy/ansible-docker
+  tags:
+     - docker

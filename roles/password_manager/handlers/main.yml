@@ -1,0 +1,5 @@
+---
+
+- name: restart password_manager
+  set_fact:
+    password_manager_docker_restart: true

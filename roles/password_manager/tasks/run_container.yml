@@ -1,0 +1,23 @@
+---
+
+- meta: flush_handlers
+
+- name: Create a network
+  become: true
+  docker_network:
+    name: "{{ item.name }}"
+  with_items: "{{ password_manager_docker_networks }}"
+
+- name: Start or restart password_manager container
+  become: true
+  docker_container:
+    name: "{{ password_manager_container_name }}"
+    image: mprasil/bitwarden
+    state: "{{ password_manager_docker_state | default('started') }}"
+    restart: "{{ password_manager_docker_restart | default(false) | bool }}"
+    networks: "{{ password_manager_docker_networks }}"
+    restart_policy: "{{ password_manager_container_restart_policy }}"
+    env:
+      SIGNUPS_ALLOWED: "{{ password_manager_signups_allowed }}"
+    volumes:
+      - "{{ password_manager_data_location }}:/data"

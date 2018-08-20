@@ -1,6 +1,0 @@
----
-
-- include: ../tasks/handle_nginx_container.yml
-  vars:
-    docker_restart: true
-    docker_state: started

@@ -1,0 +1,7 @@
+---
+
+all:
+  hosts:
+    bfivenpreprod:
+      is_prod: true
+      domain: "preprod.moi.ovh"

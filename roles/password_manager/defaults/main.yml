@@ -1,0 +1,13 @@
+---
+
+password_manager_container_name: "{{ password_manager_container }}"
+
+password_manager_root_location: "/opt/docker-data/{{ password_manager_container_name }}"
+password_manager_data_location: "{{ password_manager_root_location }}/data"
+
+password_manager_docker_networks:
+  - name: "{{ bfiven_docker_network }}"
+
+password_manager_container_restart_policy: "always"
+
+password_manager_signups_allowed: "false"

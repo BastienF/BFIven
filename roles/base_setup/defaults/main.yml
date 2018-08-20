@@ -1,7 +1,5 @@
 ---
 
-docker_allow_containers_communication: true
-
 base_packages:
   - curl
   - htop
@@ -9,10 +7,3 @@ base_packages:
   - traceroute
   - tree
   - bash
-
-docker_packages:
-  - linux-image-extra-{{ kernel_uname }}
-  - linux-image-extra-virtual
-  - apt-transport-https
-  - ca-certificates
-  - software-properties-common

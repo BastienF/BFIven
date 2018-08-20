@@ -1,7 +1,12 @@
 ---
 
-- include: reverse_proxy_setup.yml
-  when: not (reverse_proxy_erase|default(false) |bool)
-
-- include: reverse_proxy_erase.yml
-  when: reverse_proxy_erase|default(false) |bool
+- include_role:
+    name: .galaxy/ansible-traefik-in-docker
+  vars:
+    traefik_docker_networks:
+      - name: "{{ bfiven_docker_network }}"
+    traefik_http_port: 80
+    traefik_http_admin_port: 8080
+    traefik_https_port: 443
+    traefik_le_staging: "{{ not (is_prod|default(false)|bool) }}"
+    traefik_endpoints: "{{ reverse_proxy_endpoints }}"

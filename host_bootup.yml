@@ -1,11 +1,10 @@
 ---
 
-- hosts: host
+- hosts: all
   vars_prompt:
       - name: "ssh_priv_key_pass"
         prompt: 'Passphrase of private ssh key ?'
   roles:
     - { role: disk_mounting, dm_ciphering_ssh_priv_key_pass: "{{ ssh_priv_key_pass }}" }
     - { role: reverse_proxy }
-    - { role: webserver, webserver_encrypted_by_ssh_priv_passphrase: "{{ ssh_priv_key_pass }}", webserver_encrypted_by_ssh_priv: "/Users/bastien/.ssh/custom_cloud" }
-    - { role: mail }
+    - { role: password_manager }
