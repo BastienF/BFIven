@@ -2,3 +2,4 @@
 
 bfiven_docker_network: "skynet"
 password_manager_container: "bitwarden"
+reverse_proxy_container_name: "traefik"

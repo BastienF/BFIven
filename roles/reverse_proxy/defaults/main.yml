@@ -5,3 +5,5 @@ reverse_proxy_endpoints:
     host: "passwords.{{ domain }}"
     dest: "http://{{ password_manager_container }}"
     host_gen_cert: true
+
+reverse_proxy_root_location: "/data/containers/{{ reverse_proxy_container_name }}"
