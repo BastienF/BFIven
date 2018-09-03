@@ -12,3 +12,4 @@
     traefik_endpoints: "{{ reverse_proxy_endpoints }}"
     traefik_root_location: "{{ reverse_proxy_root_location }}"
     traefik_container_name: "{{ reverse_proxy_container_name }}"
+    traefik_https_only: true
