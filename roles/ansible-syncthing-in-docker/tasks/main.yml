@@ -1,0 +1,13 @@
+---
+
+- name: create syncthing local directories
+  become: true
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: true
+  with_items:
+    - "{{ syncthing_root_location }}"
+    - "{{ syncthing_conf_location }}"
+
+- include_tasks: run_container.yml

@@ -1,0 +1,17 @@
+---
+
+# Name of the syncthing docker container
+syncthing_container_name: "syncthing"
+
+syncthing_root_location: "/data/containers/{{ syncthing_container_name }}"
+
+# Path on the host filesystem where will be the syncthing conf file
+syncthing_conf_location: "{{ syncthing_root_location }}/conf"
+
+# Path on the host filesystem where will be the syncthing data dir
+syncthing_data_location: "{{ syncthing_root_location }}/data"
+
+syncthing_docker_networks:
+  - name: "{{ bfiven_docker_network }}"
+
+syncthing_container_restart_policy: "always"

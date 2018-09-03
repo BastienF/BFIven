@@ -1,0 +1,25 @@
+---
+
+- meta: flush_handlers
+
+- name: Create a network
+  become: true
+  docker_network:
+    name: "{{ item.name }}"
+  with_items: "{{ syncthing_docker_networks }}"
+
+- name: Start or restart syncthing container
+  become: true
+  docker_container:
+    name: "{{ syncthing_container_name }}"
+    image: linuxserver/syncthing
+    state: "{{ syncthing_docker_state | default('started') }}"
+    restart: "{{ syncthing_docker_restart | default(false) | bool }}"
+    networks: "{{ syncthing_docker_networks }}"
+    restart_policy: "{{ syncthing_container_restart_policy }}"
+    volumes:
+      - "{{ syncthing_conf_location }}:/config"
+      - "{{ syncthing_data_location }}:/data"
+    env:
+      PGID: 0
+      PUID: 0

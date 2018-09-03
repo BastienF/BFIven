@@ -1,0 +1,4 @@
+---
+
+syncthing_local_log_path: "/Users/{{ hostvars[inventory_hostname].syncthing_user }}/Library/Logs/"
+syncthing_local_home_path: "/Users/{{ hostvars[inventory_hostname].syncthing_user }}"

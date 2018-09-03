@@ -1,0 +1,5 @@
+---
+
+- name: restart syncthing
+  set_fact:
+    syncthing_docker_restart: true

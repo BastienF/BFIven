@@ -1,7 +1,15 @@
 ---
 
 all:
-  hosts:
-    bfiven:
-      is_prod: true
-      domain: "moi.ovh"
+  children:
+    server:
+      hosts:
+        bfiven:
+          is_prod: true
+          domain: "moi.ovh"
+          syncthing_user: "ansible"
+    local:
+      hosts:
+        localhost:
+          ansible_connection: local
+          syncthing_user: "bastien"

@@ -1,0 +1,23 @@
+---
+
+- name: Install syncthing
+  homebrew:
+    name: syncthing
+    state: present
+  tags: brew-packages
+
+- name: Ensure services directory exists
+  file:
+    path: ~/Library/LaunchAgents
+    state: directory
+
+- name: Install syncthing service
+  template:
+    src: syncthing.plist.j2
+    dest: ~/Library/LaunchAgents/syncthing.plist
+
+- name: Unload syncthing service
+  command: launchctl unload '~/Library/LaunchAgents/syncthing.plist'
+
+- name: Load syncthing service
+  command: launchctl load '~/Library/LaunchAgents/syncthing.plist'

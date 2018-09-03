@@ -2,4 +2,4 @@
 
 - hosts: server
   roles:
-    - role: password_manager
+    - role: reverse_proxy

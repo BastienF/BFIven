@@ -1,0 +1,9 @@
+---
+
+- name: Gather minimal facts to detect OS
+  setup:
+    gather_subset: min
+
+- name: Run OS specific steps (MacOS)
+  import_tasks: macos.yml
+  when: ansible_system == 'Darwin'

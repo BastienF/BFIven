@@ -1,0 +1,9 @@
+---
+
+- hosts: local
+  roles:
+    - role: file_sync_local
+
+- hosts: server
+  roles:
+    - role: ansible-syncthing-in-docker

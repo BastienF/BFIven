@@ -1,6 +1,6 @@
 ---
 
-- hosts: all
+- hosts: server
   vars_prompt:
       - name: "ssh_priv_key_pass"
         prompt: 'Passphrase of private ssh key ?'

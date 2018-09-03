@@ -5,5 +5,10 @@ reverse_proxy_endpoints:
     host: "passwords.{{ domain }}"
     dest: "http://{{ password_manager_container }}"
     host_gen_cert: true
+  file_sync:
+    host: "files.{{ domain }}"
+    dest: "http://{{ syncthing_container_name }}:8384"
+    host_gen_cert: true
+    basicAuth: "{{ syncthing_basic_auths }}"
 
 reverse_proxy_root_location: "/data/containers/{{ reverse_proxy_container_name }}"
