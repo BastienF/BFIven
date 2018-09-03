@@ -10,5 +10,9 @@ reverse_proxy_endpoints:
     dest: "http://{{ syncthing_container_name }}:8384"
     host_gen_cert: true
     basicAuth: "{{ syncthing_basic_auths }}"
+  mattermost:
+    host: "slack.{{ domain }}"
+    dest: "http://{{ mattermost_app_container_name }}:8000"
+    host_gen_cert: true
 
 reverse_proxy_root_location: "/data/containers/{{ reverse_proxy_container_name }}"

@@ -1,0 +1,31 @@
+---
+
+- include_role:
+    name: .galaxy/ansible-mattermost-in-docker
+  vars:
+    mattermost_root_location: "/data/containers/mattermost"
+    mattermost_docker_networks:
+      - name: "{{ bfiven_docker_network }}"
+    mattermost_user_app_config:
+      ServiceSettings:
+        SiteURL: 'https://slack.moi.ovh'
+        EnableOAuthServiceProvider: true
+        EnableCustomEmoji: true
+        EnableGifPicker: true
+        EnableEmailInvitations: true
+      TeamSettings:
+        SiteName: Slack
+      EmailSettings:
+        SendEmailNotifications: true
+        RequireEmailVerification: true
+        EnableSMTPAuth: true
+        SMTPUsername: 'user@gmail.com'
+        SMTPPassword: 'PASSWORD'
+        SMTPServer: 'smtp.gmail.com'
+        SMTPPort: '587'
+        ConnectionSecurity: 'STARTTLS'
+      SupportSettings:
+        SupportEmail: fiorentino.bastien@gmail.com
+      PasswordSettings: {}
+      LocalizationSettings: {}
+      DataRetentionSettings: {}
