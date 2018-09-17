@@ -27,5 +27,6 @@
       SupportSettings:
         SupportEmail: fiorentino.bastien@gmail.com
       PasswordSettings: {}
+      PrivacySettings: {}
       LocalizationSettings: {}
       DataRetentionSettings: {}

@@ -8,3 +8,5 @@
     - { role: disk_mounting, dm_ciphering_ssh_priv_key_pass: "{{ ssh_priv_key_pass }}" }
     - { role: reverse_proxy }
     - { role: password_manager }
+    - { role: ansible-syncthing-in-docker }
+    - { role: mattermost }
