@@ -5,3 +5,4 @@ certificates
 .galaxy
 *.private
 *secret.yml
+.workdir/

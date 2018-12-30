@@ -24,6 +24,8 @@
         SMTPServer: 'smtp.gmail.com'
         SMTPPort: '587'
         ConnectionSecurity: 'STARTTLS'
+        SendPushNotifications: true
+        PushNotificationServer: 'http://{{ mattermost_push_proxy_container_name }}:8066'
       SupportSettings:
         SupportEmail: fiorentino.bastien@gmail.com
       PasswordSettings: {}
