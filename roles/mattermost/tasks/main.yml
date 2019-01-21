@@ -19,8 +19,8 @@
         SendEmailNotifications: true
         RequireEmailVerification: true
         EnableSMTPAuth: true
-        SMTPUsername: 'user@gmail.com'
-        SMTPPassword: 'PASSWORD'
+        SMTPUsername: "{{ mattermost_EmailSettings_SMTPUsername }}"
+        SMTPPassword: "{{ mattermost_EmailSettings_SMTPPassword }}"
         SMTPServer: 'smtp.gmail.com'
         SMTPPort: '587'
         ConnectionSecurity: 'STARTTLS'
