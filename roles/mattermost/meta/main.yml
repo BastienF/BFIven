@@ -6,3 +6,4 @@ dependencies:
     dependency_roles:
       - src: "git+https://github.com/BastienF/ansible-mattermost-in-docker"
         version: master
+  - role: reverse_proxy

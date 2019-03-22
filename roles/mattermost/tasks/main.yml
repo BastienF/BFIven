@@ -10,6 +10,7 @@
       ServiceSettings:
         SiteURL: 'https://slack.moi.ovh'
         EnableOAuthServiceProvider: true
+        EnableLinkPreviews: true
         EnableCustomEmoji: true
         EnableGifPicker: true
         EnableEmailInvitations: true
