@@ -1,6 +1,10 @@
 ---
 
 reverse_proxy_endpoints:
+  jellyfin:
+    host: "media.{{ domain }}"
+    dest: "http://{{ jellyfin_container_name }}:8096"
+    host_gen_cert: true
   password_manager:
     host: "passwords.{{ domain }}"
     dest: "http://{{ password_manager_container }}"

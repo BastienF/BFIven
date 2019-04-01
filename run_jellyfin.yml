@@ -2,4 +2,4 @@
 
 - hosts: server
   roles:
-    - role: reverse_proxy
+    - role: media_center

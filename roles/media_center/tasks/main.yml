@@ -1,0 +1,15 @@
+---
+
+- name: create jellyfin local directories
+  become: true
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: true
+  with_items:
+    - "{{ jellyfin_conf_location }}"
+    - "{{ jellyfin_cache_location }}"
+    - "{{ jellyfin_media_location }}"
+  notify: restart jellyfin container
+
+- import_tasks: run_container.yml

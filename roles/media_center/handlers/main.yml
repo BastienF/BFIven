@@ -1,0 +1,5 @@
+---
+
+- name: restart jellyfin container
+  set_fact:
+    jellyfin_docker_restart: true

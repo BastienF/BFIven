@@ -1,0 +1,23 @@
+---
+
+- meta: flush_handlers
+
+- name: Create network
+  become: true
+  docker_network:
+    name: "{{ item.name }}"
+  with_items: "{{ jellyfin_docker_networks }}"
+
+- name: Start or restart jellyfin container
+  become: true
+  docker_container:
+    name: "{{ jellyfin_container_name }}"
+    image: "{{ jellyfin_image }}:{{ jellyfin_version }}"
+    state: "{{ jellyfin_docker_state | default('started') }}"
+    restart: "{{ jellyfin_docker_restart | default(false) | bool }}"
+    networks: "{{ jellyfin_docker_networks }}"
+    restart_policy: "{{ jellyfin_container_restart_policy }}"
+    volumes:
+      - "{{ jellyfin_conf_location }}:/config"
+      - "{{ jellyfin_cache_location }}:/cache"
+      - "{{ jellyfin_media_location }}:/media:ro"

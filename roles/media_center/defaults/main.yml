@@ -1,0 +1,17 @@
+---
+
+jellyfin_container_name: "jellyfin"
+
+jellyfin_root_location: "/data/containers/jellyfin"
+
+jellyfin_conf_location: "{{ jellyfin_root_location }}/conf"
+jellyfin_cache_location: "{{ jellyfin_root_location }}/cache"
+jellyfin_media_location: "{{ media_location }}"
+
+jellyfin_image: "bastienf/jellyfin"
+jellyfin_version: "v10.3.0-rc1"
+
+jellyfin_docker_networks:
+  - name: "{{ bfiven_docker_network }}"
+
+jellyfin_container_restart_policy: "always"
