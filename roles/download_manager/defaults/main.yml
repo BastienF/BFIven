@@ -1,0 +1,51 @@
+---
+
+download_manager_docker_networks:
+- name: "{{ bfiven_docker_network }}"
+
+download_manager_tz: "Europe/Paris"
+
+sonarr_container_name: "sonarr"
+
+sonarr_root_location: "/data/containers/{{ sonarr_container_name }}"
+
+sonarr_conf_location: "{{ sonarr_root_location }}/conf"
+sonarr_downloads_location: "{{ sonarr_root_location }}/downloads"
+sonarr_media_location: "{{ media_location }}"
+
+sonarr_image: "linuxserver/sonarr"
+sonarr_version: "2.0.0.5322-ls11"
+
+sonarr_container_restart_policy: "unless-stopped"
+
+
+
+jackett_container_name: "jackett"
+
+jackett_root_location: "/data/containers/{{ jackett_container_name }}"
+
+jackett_conf_location: "{{ jackett_root_location }}/conf"
+jackett_downloads_location: "{{ jackett_root_location }}/downloads"
+
+jackett_image: "linuxserver/jackett"
+jackett_version: "v0.11.173-ls4"
+
+jackett_container_restart_policy: "unless-stopped"
+
+
+
+transmission_container_name: "transmission"
+
+transmission_root_location: "/data/containers/{{ transmission_container_name }}"
+
+transmission_conf_location: "{{ transmission_root_location }}/conf"
+transmission_downloads_location: "{{ transmission_root_location }}/downloads"
+transmission_watch_location: "{{ transmission_root_location }}/watch"
+
+transmission_public_tcp_port: "51413"
+transmission_public_udp_port: "51413"
+
+transmission_image: "linuxserver/transmission"
+transmission_version: "2.94-r1-ls9"
+
+transmission_container_restart_policy: "unless-stopped"

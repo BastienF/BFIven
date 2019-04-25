@@ -1,0 +1,13 @@
+---
+
+- name: restart sonarr container
+  set_fact:
+    sonarr_docker_restart: true
+
+- name: restart jackett container
+  set_fact:
+    jackett_docker_restart: true
+
+- name: restart transmission container
+  set_fact:
+    transmission_docker_restart: true

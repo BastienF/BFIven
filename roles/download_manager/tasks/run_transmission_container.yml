@@ -1,0 +1,24 @@
+---
+
+- meta: flush_handlers
+
+- name: Start or restart transmission container
+  become: true
+  docker_container:
+    name: "{{ transmission_container_name }}"
+    image: "{{ transmission_image }}:{{ transmission_version }}"
+    state: "{{ transmission_docker_state | default('started') }}"
+    restart: "{{ transmission_docker_restart | default(false) | bool }}"
+    networks: "{{ download_manager_docker_networks }}"
+    restart_policy: "{{ transmission_container_restart_policy }}"
+    volumes:
+    - "{{ transmission_conf_location }}:/config"
+    - "{{ transmission_downloads_location }}:/downloads"
+    - "{{ transmission_watch_location }}:/watch"
+    ports:
+    - "{{ transmission_public_tcp_port }}:51413"
+    - "{{ transmission_public_udp_port }}:51413/udp"
+    env:
+      PUID: 0
+      PGID: 0
+      TZ: "{{ download_manager_tz }}"

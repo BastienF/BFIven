@@ -1,6 +1,21 @@
 ---
 
 reverse_proxy_endpoints:
+  transmission:
+    host: "transmission.{{ domain }}"
+    dest: "http://{{ transmission_container_name }}:9091"
+    host_gen_cert: true
+    basicAuth: "{{ download_manager_basic_auths }}"
+  jackett:
+    host: "jackett.{{ domain }}"
+    dest: "http://{{ jackett_container_name }}:9117"
+    host_gen_cert: true
+    basicAuth: "{{ download_manager_basic_auths }}"
+  sonarr:
+    host: "download.{{ domain }}"
+    dest: "http://{{ sonarr_container_name }}:8989"
+    host_gen_cert: true
+    basicAuth: "{{ download_manager_basic_auths }}"
   jellyfin:
     host: "media.{{ domain }}"
     dest: "http://{{ jellyfin_container_name }}:8096"

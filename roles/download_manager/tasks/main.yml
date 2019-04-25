@@ -1,0 +1,78 @@
+---
+
+- name: create sonarr local directories
+  become: true
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: true
+  with_items:
+    - "{{ sonarr_conf_location }}"
+    - "{{ sonarr_media_location }}"
+  notify: restart sonarr container
+
+- name: create jackett local directories
+  become: true
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: true
+  with_items:
+  - "{{ jackett_conf_location }}"
+  - "{{ jackett_downloads_location }}"
+  notify: restart jackett container
+
+- name: create transmission local directories
+  become: true
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: true
+  with_items:
+  - "{{ transmission_conf_location }}"
+  - "{{ transmission_downloads_location }}"
+  - "{{ transmission_watch_location }}"
+  notify: restart transmission container
+
+- name: Create network
+  become: true
+  docker_network:
+    name: "{{ item.name }}"
+  with_items: "{{ download_manager_docker_networks }}"
+
+- import_tasks: run_transmission_container.yml
+
+- import_tasks: run_container.yml
+
+- name: Wait until transmission has initialized its settings
+  become: true
+  wait_for:
+    path: "{{ transmission_conf_location }}/settings.json"
+
+- name: Check if domain is allowed in transmission settings
+  become: true
+  lineinfile:
+    path: "{{ transmission_conf_location }}/settings.json"
+    regexp: '    \"rpc-host-whitelist\":'
+    line: "    \"rpc-host-whitelist\": \"*.{{ domain }},{{ transmission_container_name }}\","
+  register: transmission_configured
+
+
+- import_tasks: run_transmission_container.yml
+  when: transmission_configured.changed
+  vars:
+    transmission_docker_state: stopped
+
+- name: Allow domain in transmission settings
+  become: true
+  when: transmission_configured.changed
+  lineinfile:
+    path: "{{ transmission_conf_location }}/settings.json"
+    regexp: '    \"rpc-host-whitelist\":'
+    line: "    \"rpc-host-whitelist\": \"*.{{ domain }},{{ transmission_container_name }}\","
+  notify: restart transmission container
+
+- import_tasks: run_transmission_container.yml
+  when: transmission_configured.changed
+  vars:
+    transmission_docker_state: started

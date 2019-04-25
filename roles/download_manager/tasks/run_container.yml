@@ -1,0 +1,38 @@
+---
+
+- meta: flush_handlers
+
+- name: Start or restart sonarr container
+  become: true
+  docker_container:
+    name: "{{ sonarr_container_name }}"
+    image: "{{ sonarr_image }}:{{ sonarr_version }}"
+    state: "{{ sonarr_docker_state | default('started') }}"
+    restart: "{{ sonarr_docker_restart | default(false) | bool }}"
+    networks: "{{ download_manager_docker_networks }}"
+    restart_policy: "{{ sonarr_container_restart_policy }}"
+    volumes:
+      - "{{ sonarr_conf_location }}:/config"
+      - "{{ transmission_downloads_location }}:/downloads:ro"
+      - "{{ sonarr_media_location }}:/tv"
+    env:
+      PUID: 0
+      PGID: 0
+      TZ: "{{ download_manager_tz }}"
+
+- name: Start or restart jackett container
+  become: true
+  docker_container:
+    name: "{{ jackett_container_name }}"
+    image: "{{ jackett_image }}:{{ jackett_version }}"
+    state: "{{ jackett_docker_state | default('started') }}"
+    restart: "{{ jackett_docker_restart | default(false) | bool }}"
+    networks: "{{ download_manager_docker_networks }}"
+    restart_policy: "{{ jackett_container_restart_policy }}"
+    volumes:
+    - "{{ jackett_conf_location }}:/config"
+    - "{{ jackett_downloads_location }}:/downloads"
+    env:
+      PUID: 0
+      PGID: 0
+      TZ: "{{ download_manager_tz }}"
