@@ -2,6 +2,7 @@
 *.log
 .vagrant
 certificates
+certificates_bak
 .galaxy
 *.private
 *secret.yml
