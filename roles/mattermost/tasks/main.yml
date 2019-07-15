@@ -8,7 +8,7 @@
       - name: "{{ bfiven_docker_network }}"
     mattermost_user_app_config:
       ServiceSettings:
-        SiteURL: 'https://slack.moi.ovh'
+        SiteURL: "https://slack.{{ domain }}"
         EnableOAuthServiceProvider: true
         EnableLinkPreviews: true
         EnableCustomEmoji: true
