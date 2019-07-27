@@ -1,0 +1,105 @@
+---
+
+- name: create ovpn local directories
+  become: true
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: true
+  with_items:
+    - "{{ ovpn_conf_location }}"
+    - "{{ ovpn_generated_conf_location }}"
+
+- name: create a secrets file
+  become: true
+  copy:
+    force: false
+    content: "{}"
+    dest: "{{ ovpn_secrets_file_location }}"
+    mode: 0600
+
+- name: slurp secret file
+  become: true
+  slurp:
+    src: "{{ ovpn_secrets_file_location }}"
+  register: slurped_secrets
+
+- set_fact:
+   secrets_json: "{{ slurped_secrets['content'] | b64decode | from_json }}"
+
+- name: enrich secrets
+  set_fact:
+      secrets_json: "{{ secrets_json | combine( {item: lookup('password', '/dev/null length=48 chars=ascii_letters,digits') } ) }}"
+  when: secrets_json[item] is undefined
+  with_items:
+    - "ca_pass"
+
+- name: dump secrets file
+  become: true
+  copy:
+    content: "{{ secrets_json | to_nice_json }}"
+    dest: "{{ ovpn_secrets_file_location }}"
+    mode: 0600
+
+- name: Generate config
+  become: true
+  command: "docker run -v {{ ovpn_generated_conf_location }}:/etc/openvpn --log-driver=none --rm {{ ovpn_container_image }} ovpn_genconfig -u udp://{{ ovpn_url }}"
+
+- name: install pexpect
+  become: yes
+  pip:
+    name: pexpect
+
+- name: Generate pki
+  become: true
+  expect:
+    command: "docker run -v {{ ovpn_generated_conf_location }}:/etc/openvpn --log-driver=none --rm -it {{ ovpn_container_image }} ovpn_initpki"
+    timeout: 300
+    responses:
+      "Enter New CA Key Passphrase: ": "{{ secrets_json.ca_pass }}"
+      "Common Name": "{{ ovpn_url }}"
+      "Enter pass phrase for /etc/openvpn/pki/private/ca.key:": "{{ secrets_json.ca_pass }}"
+  args:
+    creates: "{{ ovpn_generated_conf_location }}/pki/ca.crt"
+  vars:
+    ansible_command_timeout: 300
+
+- import_tasks: run_container.yml
+
+- name: Generate client certs
+  become: true
+  expect:
+    command: "docker run -v {{ ovpn_generated_conf_location }}:/etc/openvpn --log-driver=none --rm -it {{ ovpn_container_image }} easyrsa build-client-full {{ item }} nopass"
+    responses:
+      "Enter pass phrase for /etc/openvpn/pki/private/ca.key:": "{{ secrets_json.ca_pass }}"
+  with_items: "{{ ovpn_clients }}"
+  args:
+    creates: "{{ ovpn_generated_conf_location }}/pki/private/{{ item }}.key"
+
+- name: Generate client configs
+  become: true
+  command: "docker run --rm -it -v {{ ovpn_generated_conf_location }}:/etc/openvpn --volume /tmp/openvpn_clients:/etc/openvpn/clients {{ ovpn_container_image }} ovpn_getclient_all"
+
+- name: Find all config files
+  become: true
+  command: find /tmp/openvpn_clients -type f -name "*.ovpn"
+  register: ovpn_config_files
+  changed_when: false
+
+- name: Put right port
+  become: true
+  replace: dest={{item}} regexp=" 1194" replace=" {{ ovpn_port }}"
+  with_items: "{{ ovpn_config_files.stdout_lines }}"
+
+- name: Download clients config
+  become: true
+  synchronize:
+    src: "/tmp/openvpn_clients"
+    dest: "{{ playbook_dir }}/certificates_ovpn/{{ inventory_hostname }}"
+    mode: pull
+
+- name: Clean tmp files
+  become: true
+  file:
+    state: absent
+    path: "/tmp/openvpn_clients/"

@@ -3,6 +3,7 @@
 .vagrant
 certificates
 certificates_bak
+certificates_ovpn
 .galaxy
 *.private
 *secret.yml

@@ -1,0 +1,5 @@
+---
+
+- hosts: server
+  roles:
+    - role: vpn

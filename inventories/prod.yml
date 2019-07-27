@@ -8,6 +8,7 @@ all:
           is_prod: true
           domain: "moi.ovh"
           syncthing_user: "ansible"
+          vpn_port: 11194
     local:
       hosts:
         localhost:

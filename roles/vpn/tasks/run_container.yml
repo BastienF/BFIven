@@ -1,0 +1,25 @@
+---
+
+- meta: flush_handlers
+
+- name: Create network
+  become: true
+  docker_network:
+    name: "{{ item.name }}"
+  with_items: "{{ ovpn_docker_networks }}"
+
+- name: Start or restart ovpn container
+  become: true
+  docker_container:
+    name: "{{ ovpn_container_name }}"
+    image: "{{ ovpn_container_image }}"
+    state: "{{ ovpn_docker_state | default('started') }}"
+    restart: "{{ ovpn_docker_restart | default(false) | bool }}"
+    networks: "{{ ovpn_docker_networks }}"
+    restart_policy: "{{ ovpn_container_restart_policy }}"
+    volumes:
+      - "{{ ovpn_generated_conf_location }}:/etc/openvpn"
+    ports:
+      - "{{ ovpn_port }}:1194/udp"
+    capabilities:
+      - net_admin

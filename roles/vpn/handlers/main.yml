@@ -1,0 +1,5 @@
+---
+
+- name: restart ovpn
+  set_fact:
+    ovpn_docker_restart: true

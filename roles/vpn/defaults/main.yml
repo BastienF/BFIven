@@ -1,0 +1,28 @@
+---
+
+# Name of the ovpn docker container
+ovpn_container_name: "ovpn"
+
+ovpn_container_image: "kylemanna/openvpn"
+
+ovpn_url: "vpn.{{ domain }}"
+
+ovpn_port: "{{ vpn_port }}"
+
+ovpn_docker_networks: []
+
+ovpn_root_location: "/data/containers/{{ ovpn_container_name }}"
+
+# Path on the host filesystem where will be the ovpn conf file
+ovpn_conf_location: "{{ ovpn_root_location }}/conf"
+ovpn_generated_conf_location: "{{ ovpn_root_location }}/generated_conf"
+
+#ovpn_docker_networks:
+#  - name: "docker_network"
+
+ovpn_secrets_file_location: "{{ ovpn_conf_location }}/secrets.json"
+
+ovpn_container_restart_policy: "unless-stopped"
+
+ovpn_clients:
+  - "default_client"
