@@ -8,6 +8,7 @@
     traefik_http_port: 80
     traefik_http_admin_port: 8080
     traefik_https_port: 443
+    traefik_le_contact_email: "fiorentino.bastien@gmail.com"
     traefik_le_staging: "{{ not (is_prod|default(false)|bool) }}"
     traefik_endpoints: "{{ reverse_proxy_endpoints }}"
     traefik_root_location: "{{ reverse_proxy_root_location }}"
