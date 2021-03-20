@@ -1,0 +1,25 @@
+#!/bin/bash
+
+export PATH=$PATH:/usr/local/sbin
+echo "$(tail -1000 {{ restic_backup_cron_log }})" > {{ restic_backup_cron_log }}
+echo "$(tail -1000 {{ restic_backup_cron_err_log }})" > {{ restic_backup_cron_err_log }}
+
+exec 2>> {{ restic_backup_cron_err_log }}
+exec 1>> {{ restic_backup_cron_log }}
+
+echo "=== Start backup at $(date) ==="
+
+source /usr/local/sbin/openstack-login.sh
+
+REPO="swift:{{ restic_backup_openstack_container_name }}:/{{ restic_backup_repo_name }}"
+REPO_PWD='--password-command "echo {{ restic_backup_repo_pwd }}"'
+RESTIC_CMD="restic --verbose $REPO_PWD -r $REPO"
+
+eval $RESTIC_CMD snapshots || eval $RESTIC_CMD init
+{% for restic_backup_path in restic_backup_paths_to_backup %}
+eval $RESTIC_CMD backup {{ restic_backup_path }}
+{% endfor %}
+
+eval $RESTIC_CMD forget {{ restic_backup_retention_policy }} --prune
+
+echo "=== End backup at $(date) ==="

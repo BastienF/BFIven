@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# To use an Openstack cloud you need to authenticate against keystone, which
+# returns a **Token** and **Service Catalog**. The catalog contains the
+# endpoint for all services the user/tenant has access to - including nova,
+# glance, keystone, swift.
+#
+export OS_AUTH_URL="{{ restic_backup_openstack_auth_url }}"
+export OS_IDENTITY_API_VERSION={{ restic_backup_openstack_identity_api_version }}
+
+export OS_USER_DOMAIN_NAME=${OS_USER_DOMAIN_NAME:-"Default"}
+export OS_PROJECT_DOMAIN_NAME=${OS_PROJECT_DOMAIN_NAME:-"Default"}
+
+
+# With the addition of Keystone we have standardized on the term **tenant**
+# as the entity that owns the resources.
+export OS_TENANT_ID="{{ restic_backup_openstack_tenant_id }}"
+export OS_TENANT_NAME="{{ restic_backup_openstack_tenant_name }}"
+
+# In addition to the owning entity (tenant), openstack stores the entity
+# performing the action as the **user**.
+export OS_USERNAME="{{ restic_backup_openstack_user_name }}"
+
+export OS_PASSWORD="{{ restic_backup_openstack_user_password }}"
+
+# If your configuration has multiple regions, we set that information here.
+# OS_REGION_NAME is optional and only valid in certain environments.
+export OS_REGION_NAME="{{ restic_backup_openstack_region_name }}"
+# Don't leave a blank variable, unset it if it was empty
+if [ -z "$OS_REGION_NAME" ]; then unset OS_REGION_NAME; fi

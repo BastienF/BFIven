@@ -1,0 +1,48 @@
+---
+
+- name: Check if restic bin exists
+  stat:
+    path: /usr/local/sbin/restic
+  register: restic_bin_stat
+
+- name: Download restic bin
+  become: true
+  get_url:
+    url: https://github.com/restic/restic/releases/download/v0.12.0/restic_0.12.0_linux_amd64.bz2
+    dest: /tmp/restic.bz2
+  when: not restic_bin_stat.stat.exists
+
+- name: Uncompress restic bin
+  become: true
+  shell: bzcat /tmp/restic.bz2 > /usr/local/sbin/restic
+  when: not restic_bin_stat.stat.exists
+
+- name: Chmod restic bin
+  become: true
+  file:
+    mode: 0700
+    path: /usr/local/sbin/restic
+
+- name: deploy openstack login script
+  become: true
+  template:
+    mode: 0700
+    src: openstack-login.sh.j2
+    dest: /usr/local/sbin/openstack-login.sh
+
+- name: deploy restic backup script
+  become: true
+  template:
+    mode: 0700
+    src: restic-backup.sh.j2
+    dest: /usr/local/sbin/restic-backup.sh
+
+- name: Add backup to crontab
+  become: true
+  cron:
+    name: restic backup
+    minute: "0"
+    hour: "4"
+    user: root
+    job: "/usr/local/sbin/restic-backup.sh"
+    cron_file: restic-backup
