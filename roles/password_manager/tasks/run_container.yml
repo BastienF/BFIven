@@ -12,7 +12,7 @@
   become: true
   docker_container:
     name: "{{ password_manager_container_name }}"
-    image: mprasil/bitwarden
+    image: bitwardenrs/server
     state: "{{ password_manager_docker_state | default('started') }}"
     restart: "{{ password_manager_docker_restart | default(false) | bool }}"
     networks: "{{ password_manager_docker_networks }}"
