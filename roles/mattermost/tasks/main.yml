@@ -1,35 +1,61 @@
 ---
 
-- include_role:
-    name: .galaxy/ansible-mattermost-in-docker
-  vars:
-    mattermost_root_location: "/data/containers/mattermost"
-    mattermost_docker_networks:
-      - name: "{{ bfiven_docker_network }}"
-    mattermost_user_app_config:
-      ServiceSettings:
-        SiteURL: "https://slack.{{ domain }}"
-        EnableOAuthServiceProvider: true
-        EnableLinkPreviews: true
-        EnableCustomEmoji: true
-        EnableGifPicker: true
-        EnableEmailInvitations: true
-      TeamSettings:
-        SiteName: Slack
-      EmailSettings:
-        SendEmailNotifications: true
-        RequireEmailVerification: true
-        EnableSMTPAuth: true
-        SMTPUsername: "{{ mattermost_EmailSettings_SMTPUsername }}"
-        SMTPPassword: "{{ mattermost_EmailSettings_SMTPPassword }}"
-        SMTPServer: 'smtp.gmail.com'
-        SMTPPort: '587'
-        ConnectionSecurity: 'STARTTLS'
-        SendPushNotifications: true
-        PushNotificationServer: 'http://{{ mattermost_push_proxy_container_name }}:8066'
-      SupportSettings:
-        SupportEmail: fiorentino.bastien@gmail.com
-      PasswordSettings: {}
-      PrivacySettings: {}
-      LocalizationSettings: {}
-      DataRetentionSettings: {}
+- name: create mattermost local directories
+  become: true
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: true
+  with_items:
+    - "{{ mattermost_postgres_data_location }}"
+    - "{{ mattermost_conf_location }}"
+
+- name: create mattermost app local directories
+  become: true
+  file:
+    owner: "{{ mattermost_default_puid }}"
+    path: "{{ item }}"
+    state: directory
+    recurse: true
+  with_items:
+    - "{{ mattermost_app_conf_location }}"
+    - "{{ mattermost_app_data_location }}"
+    - "{{ mattermost_app_logs_location }}"
+    - "{{ mattermost_plugins_location }}"
+    - "{{ mattermost_client_plugins_location }}"
+    - "{{ mattermost_bleve_location }}"
+
+- name: create a secrets file
+  become: true
+  copy:
+    force: false
+    content: "{}"
+    dest: "{{ mattermost_secrets_file_location }}"
+    mode: "0600"
+
+- name: slurp secret file
+  become: true
+  slurp:
+    src: "{{ mattermost_secrets_file_location }}"
+  register: slurped_secrets
+
+- set_fact:
+   secrets_json: "{{ slurped_secrets['content'] | b64decode | from_json }}"
+
+- name: enrich secrets
+  set_fact:
+      secrets_json: "{{ secrets_json | combine( {item: lookup('password', '/dev/null length=48 chars=ascii_letters,digits') } ) }}"
+  when: secrets_json[item] is undefined
+  with_items:
+    - "EmailSettings_InviteSalt"
+    - "FileSettings_PublicLinkSalt"
+    - "PostgresPassword"
+
+- name: dump secrets file
+  become: true
+  copy:
+    content: "{{ secrets_json | to_nice_json }}"
+    dest: "{{ mattermost_secrets_file_location }}"
+    mode: "0600"
+
+- import_tasks: run_container.yml

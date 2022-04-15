@@ -1,2 +1,40 @@
 ---
 
+# Name of the mattermost docker container
+mattermost_app_container_name: "mattermost_app"
+mattermost_db_container_name: "mattermost_db"
+
+mattermost_root_location: "/data/containers/mattermost"
+
+# Path on the host filesystem where will be the mattermost conf file
+mattermost_conf_location: "{{ mattermost_root_location }}/conf"
+mattermost_app_conf_location: "{{ mattermost_conf_location }}/app"
+
+# Path on the host filesystem where will be the mattermost data
+mattermost_data_location: "{{ mattermost_root_location }}/data"
+mattermost_postgres_data_location: "{{ mattermost_data_location }}/db"
+mattermost_app_data_location: "{{ mattermost_data_location }}/app"
+
+# Path on the host filesystem where will be the mattermost logs
+mattermost_logs_location: "{{ mattermost_root_location }}/logs"
+mattermost_app_logs_location: "{{ mattermost_logs_location }}/app"
+
+# Path on the host filesystem where will be the mattermost plugins
+mattermost_plugins_location: "{{ mattermost_root_location }}/plugins"
+mattermost_client_plugins_location: "{{ mattermost_root_location }}/client-plugins"
+
+mattermost_bleve_location: "{{ mattermost_root_location }}/bleve-indexes"
+
+mattermost_docker_networks:
+  - name: "{{ bfiven_docker_network }}"
+
+mattermost_secrets_file_location: "{{ mattermost_conf_location }}/secrets.json"
+
+mattermost_container_restart_policy: "always"
+
+mattermost_default_puid: "2000"
+
+mattermost_env_domain: "https://slack.{{ domain }}"
+mattermost_env_timezone: "Europe/Paris"
+
+mattermost_postgres_image_tag: "14-alpine"

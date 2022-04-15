@@ -1,0 +1,60 @@
+---
+
+- meta: flush_handlers
+
+- name: Create network
+  become: true
+  docker_network:
+    name: "{{ item.name }}"
+  with_items: "{{ mattermost_docker_networks }}"
+
+- name: Start or restart mattermost db container
+  become: true
+  docker_container:
+    name: "{{ mattermost_db_container_name }}"
+    image: "postgres:{{ mattermost_postgres_image_tag }}"
+    security_opts:
+      - "no-new-privileges:true"
+    pids_limit: 100
+    read_only: true
+    state: "{{ mattermost_docker_state | default('started') }}"
+    restart: "{{ mattermost_db_docker_restart | default(false) | bool }}"
+    networks: "{{ mattermost_docker_networks }}"
+    restart_policy: "{{ mattermost_container_restart_policy }}"
+    tmpfs:
+      - "/tmp"
+      - "/var/run/postgresql"
+    volumes:
+      - "{{ mattermost_postgres_data_location }}:/var/lib/postgresql/data"
+    env:
+      TZ: "{{ mattermost_env_timezone }}"
+      POSTGRES_USER: mmuser
+      POSTGRES_PASSWORD: "{{ secrets_json.PostgresPassword }}"
+      POSTGRES_DB: mattermost
+
+- name: Start or restart mattermost app container
+  become: true
+  docker_container:
+    name: "{{ mattermost_app_container_name }}"
+    image: mattermost/mattermost-team-edition:6.3
+    security_opts:
+      - "no-new-privileges:true"
+    pids_limit: 200
+    read_only: false
+    state: "{{ mattermost_docker_state | default('started') }}"
+    restart: "{{ mattermost_app_docker_restart | default(false) | bool }}"
+    networks: "{{ mattermost_docker_networks }}"
+    restart_policy: "{{ mattermost_container_restart_policy }}"
+    volumes:
+      - "{{ mattermost_app_conf_location }}:/mattermost/config:rw"
+      - "{{ mattermost_app_data_location }}:/mattermost/data:rw"
+      - "{{ mattermost_app_logs_location }}:/mattermost/logs:rw"
+      - "{{ mattermost_plugins_location }}:/mattermost/plugins:rw"
+      - "{{ mattermost_client_plugins_location }}:/mattermost/client/plugins:rw"
+      - "{{ mattermost_bleve_location }}:/mattermost/bleve-indexes:rw"
+    env:
+      TZ: "{{ mattermost_env_timezone }}"
+      MM_SQLSETTINGS_DRIVERNAME: postgres
+      MM_SQLSETTINGS_DATASOURCE: "postgres://mmuser:{{ secrets_json.PostgresPassword|urlencode() }}@{{ mattermost_db_container_name }}:5432/mattermost?sslmode=disable&connect_timeout=10"
+      MM_BLEVESETTINGS_INDEXDIR: "/mattermost/bleve-indexes"
+      MM_SERVICESETTINGS_SITEURL: "https://{{ mattermost_env_domain }}"

@@ -8,3 +8,6 @@ certificates_ovpn
 *.private
 *secret.yml
 .workdir/
+*.crt
+*.key
+*.ovpn
