@@ -10,7 +10,7 @@ init_script = "init-ansible-debian.sh"
 init_script_dest = "/tmp/#{init_script}"
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-  config.vm.box = "ubuntu/xenial64"
+  config.vm.box = "bento/ubuntu-20.04"
   config.vm.define "bfivendev" do |config|
     config.vm.host_name = "bfivendev"
     config.vm.network "private_network", ip: "#{@subnet}.10"
@@ -28,7 +28,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         vb.memory = 2048
       end
     end
-  config.vm.provision "shell", :privileged => true, inline: "apt-get install -y python"
+ # config.vm.provision "shell", :privileged => true, inline: "apt-get install -y python"
   config.vm.provision "shell", :privileged => true, inline: "source <(curl -s https://raw.githubusercontent.com/BastienF/CustomCloud/master/init-ansible-debian.sh)"
-  config.vm.provision "shell", :privileged => true, inline: "sed -i 's/Port 22/Port 6022/g' /etc/ssh/sshd_config; systemctl restart sshd"
+  config.vm.provision "shell", :privileged => true, inline: "sed -E -i 's/#?Port 22/Port 6022/g' /etc/ssh/sshd_config; systemctl restart sshd"
 end
