@@ -1,0 +1,10 @@
+---
+
+- hosts: server
+  vars_prompt:
+    - name: "var_mastodon_setup_db"
+      prompt: 'Setup Mastodon DB ?'
+      default: "false"
+      private: no
+  roles:
+    - { role: mastodon, mastodon_setup_db: "{{ var_mastodon_setup_db }}" }

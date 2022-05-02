@@ -1,0 +1,158 @@
+---
+
+- meta: flush_handlers
+
+- name: Create network
+  become: true
+  docker_network:
+    name: "{{ item.name }}"
+  with_items: "{{ mastodon_docker_networks }}"
+
+- name: Start or restart mastodon db container
+  become: true
+  docker_container:
+    name: "{{ mastodon_db_container_name }}"
+    image: "postgres:{{ mastodon_postgres_image_tag }}"
+    shm_size: "256m"
+    security_opts:
+      - "no-new-privileges:true"
+    pids_limit: 200
+    read_only: true
+    state: "{{ mastodon_docker_state | default('started') }}"
+    restart: "{{ mastodon_db_docker_restart | default(false) | bool }}"
+    networks: "{{ mastodon_docker_networks }}"
+    restart_policy: "{{ mastodon_container_restart_policy }}"
+    tmpfs:
+      - "/tmp"
+      - "/var/run/postgresql"
+    volumes:
+      - "{{ mastodon_postgres_data_location }}:/var/lib/postgresql/data"
+    env:
+      TZ: "{{ mastodon_env_timezone }}"
+      POSTGRES_USER: "{{ mastodon_env_conf.DB_USER }}"
+      POSTGRES_PASSWORD: "{{ mastodon_env_conf.DB_PASS }}"
+      POSTGRES_DB: "{{ mastodon_env_conf.DB_NAME }}"
+
+- name: Start or restart mastodon redis container
+  become: true
+  docker_container:
+    name: "{{ mastodon_redis_container_name }}"
+    image: "redis:{{ mastodon_redis_image_tag }}"
+    command: redis-server /usr/local/etc/redis/redis.conf
+    security_opts:
+      - "no-new-privileges:true"
+    pids_limit: 200
+    read_only: true
+    state: "{{ mastodon_docker_state | default('started') }}"
+    restart: "{{ mastodon_redis_docker_restart | default(false) | bool }}"
+    networks: "{{ mastodon_docker_networks }}"
+    restart_policy: "{{ mastodon_container_restart_policy }}"
+    volumes:
+      - "{{ mastodon_redis_cache_location }}:/data"
+      - "{{ mastodon_redis_conf_location }}:/usr/local/etc/redis"
+
+#- name: Start or restart mastodon es container
+#  become: true
+#  docker_container:
+#    name: "{{ mastodon_es_container_name }}"
+#    image: "docker.elastic.co/elasticsearch/elasticsearch-oss:{{ mastodon_es_image_tag }}"
+#    security_opts:
+#      - "no-new-privileges:true"
+#    pids_limit: 200
+#    state: "{{ mastodon_docker_state | default('started') }}"
+#    restart: "{{ mastodon_es_docker_restart | default(false) | bool }}"
+#    networks: "{{ mastodon_docker_networks }}"
+#    restart_policy: "{{ mastodon_container_restart_policy }}"
+#    volumes:
+#      - "{{ mastodon_es_data_location }}:/usr/share/elasticsearch/data"
+#    ulimits:
+#      - "memlock:-1:-1"
+#    env:
+#      ES_JAVA_OPTS: "-Xms128m -Xmx128m"
+#      cluster.name: "es-mastodon"
+#      discovery.type: "single-node"
+#      bootstrap.memory_lock: "true"
+#      ES_USER: "{{ mastodon_env_conf.ES_USER }}"
+#      ES_PASS: "{{ mastodon_env_conf.ES_PASS }}"
+
+- name: Init db
+  become: true
+  docker_container:
+    name: "{{ mastodon_db_init_container_name }}"
+    image: "tootsuite/mastodon:{{ mastodon_image_tag }}"
+    detach: "false"
+    command: bundle exec rails db:setup --trace
+    restart_policy: "no"
+    pids_limit: 200
+    state: "started"
+    networks: "{{ mastodon_docker_networks }}"
+    env: "{{ mastodon_env_conf }}"
+  when: mastodon_setup_db|bool
+
+- name: Migrate db
+  become: true
+  docker_container:
+    name: "{{ mastodon_db_init_container_name }}"
+    image: "tootsuite/mastodon:{{ mastodon_image_tag }}"
+    detach: "false"
+    command: bundle exec rails db:migrate --trace
+    restart_policy: "no"
+    pids_limit: 200
+    state: "started"
+    networks: "{{ mastodon_docker_networks }}"
+    env: "{{ mastodon_env_conf }}"
+
+- name: Start or restart mastodon web container
+  become: true
+  docker_container:
+    name: "{{ mastodon_web_container_name }}"
+    image: "tootsuite/mastodon:{{ mastodon_image_tag }}"
+    command: bash -c "rm -f /mastodon/tmp/pids/server.pid; bundle exec rails s -p 3000"
+    #security_opts:
+    #  - "no-new-privileges:true"
+    pids_limit: 200
+    state: "{{ mastodon_docker_state | default('started') }}"
+    restart: "{{ mastodon_web_docker_restart | default(false) | bool }}"
+    networks: "{{ mastodon_docker_networks }}"
+    restart_policy: "{{ mastodon_container_restart_policy }}"
+    volumes:
+      - "{{ mastodon_web_data_location }}:/mastodon/public/system"
+    env: "{{ mastodon_env_conf }}"
+    cpu_period: 100000
+    cpu_quota: 50000
+
+- name: Start or restart mastodon streaming container
+  become: true
+  docker_container:
+    name: "{{ mastodon_streaming_container_name }}"
+    image: "tootsuite/mastodon:{{ mastodon_image_tag }}"
+    command: node ./streaming
+    security_opts:
+      - "no-new-privileges:true"
+    pids_limit: 200
+    read_only: true
+    state: "{{ mastodon_docker_state | default('started') }}"
+    restart: "{{ mastodon_web_docker_restart | default(false) | bool }}"
+    networks: "{{ mastodon_docker_networks }}"
+    restart_policy: "{{ mastodon_container_restart_policy }}"
+    env: "{{ mastodon_env_conf }}"
+    cpu_period: 100000
+    cpu_quota: 50000
+
+- name: Start or restart mastodon sidekiq container
+  become: true
+  docker_container:
+    name: "{{ mastodon_sidekiq_container_name }}"
+    image: "tootsuite/mastodon:{{ mastodon_image_tag }}"
+    command: bundle exec sidekiq
+    security_opts:
+      - "no-new-privileges:true"
+    pids_limit: 200
+    read_only: true
+    state: "{{ mastodon_docker_state | default('started') }}"
+    restart: "{{ mastodon_web_docker_restart | default(false) | bool }}"
+    networks: "{{ mastodon_docker_networks }}"
+    restart_policy: "{{ mastodon_container_restart_policy }}"
+    volumes:
+      - "{{ mastodon_web_data_location }}:/mastodon/public/system"
+    env: "{{ mastodon_env_conf }}"

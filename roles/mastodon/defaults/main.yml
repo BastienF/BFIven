@@ -1,0 +1,89 @@
+---
+
+# Name of the mastodon docker container
+mastodon_db_container_name: "mastodon_db"
+mastodon_redis_container_name: "mastodon_redis"
+mastodon_es_container_name: "mastodon_es"
+mastodon_web_container_name: "mastodon_web"
+mastodon_db_init_container_name: "mastodon_db_init"
+mastodon_sidekiq_container_name: "mastodon_sidekiq"
+mastodon_streaming_container_name: "mastodon_streaming"
+
+mastodon_default_puid: "991"
+
+mastodon_root_location: "/data/containers/mastodon"
+
+# Path on the host filesystem where will be the mastodon conf file
+mastodon_conf_location: "{{ mastodon_root_location }}/conf"
+mastodon_redis_conf_location: "{{ mastodon_conf_location }}/redis"
+
+# Path on the host filesystem where will be the mastodon data
+mastodon_data_location: "{{ mastodon_root_location }}/data"
+mastodon_postgres_data_location: "{{ mastodon_data_location }}/db"
+mastodon_es_data_location: "{{ mastodon_data_location }}/es"
+mastodon_web_data_location: "{{ mastodon_data_location }}/web"
+mastodon_sidekiq_data_location: "{{ mastodon_data_location }}/sidekiq"
+
+mastodon_cache_location: "{{ mastodon_root_location }}/cache"
+mastodon_redis_cache_location: "{{ mastodon_cache_location }}/redis"
+
+mastodon_docker_networks:
+  - name: "{{ bfiven_docker_network }}"
+
+mastodon_secrets_file_location: "{{ mastodon_conf_location }}/secrets.json"
+
+mastodon_container_restart_policy: "always"
+
+mastodon_env_timezone: "Europe/Paris"
+
+mastodon_postgres_image_tag: "14-alpine"
+mastodon_redis_image_tag: "6-alpine"
+mastodon_es_image_tag: "7.10.2"
+mastodon_image_tag: "v3.5.1"
+
+mastodon_local_domain: "suivez.{{ domain }}"
+mastodon_setup_db: "false"
+
+mastodon_env_conf:
+  LOCAL_DOMAIN: "{{ mastodon_local_domain }}"
+  SINGLE_USER_MODE: "false"
+  # Redis
+  REDIS_HOST: "{{ mastodon_redis_container_name }}"
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD: "{{ secrets_json.RedisPassword }}"
+  # PostgreSQL
+  DB_HOST: "{{ mastodon_db_container_name }}"
+  DB_USER: "mastodon"
+  DB_NAME: "mastodon_production"
+  DB_PASS: "{{ secrets_json.PostgresPassword }}"
+  # Elasticsearch (optional)
+  ES_ENABLED: "false"
+#  ES_HOST: "{{ mastodon_es_container_name }}"
+#  ES_PORT: "9200"
+#  # Authentication for ES (optional)
+#  ES_USER: "mastodon"
+#  ES_PASS: "{{ secrets_json.ESPassword }}"
+  # Secrets
+  # Make sure to use `rake secret` to generate secrets
+  SECRET_KEY_BASE: "{{ mastodon_secret_key_base }}"
+  OTP_SECRET: "{{ mastodon_otp_secret }}"
+  # Web Push
+  # Generate with `rake mastodon:webpush:generate_vapid_key`
+  VAPID_PRIVATE_KEY: "{{ mastodon_vapid_private_key }}"
+  VAPID_PUBLIC_KEY: "{{ mastodon_vapid_public_key }}"
+  # Sending mail
+  SMTP_SERVER: "smtp.gmail.com"
+  SMTP_PORT: "587"
+  SMTP_LOGIN: "{{ mastodon_smtp_username }}"
+  SMTP_PASSWORD: "{{ mastodon_smtp_password }}"
+  SMTP_FROM_ADDRESS: "{{ mastodon_smtp_username }}"
+  SMTP_AUTH_METHOD: "plain"
+  SMTP_OPENSSL_VERIFY_MODE: "peer"
+  SMTP_ENABLE_STARTTLS_AUTO: "true"
+  WEB_CONCURRENCY: "0"
+  MAX_THREADS: "4"
+  STREAMING_CLUSTER_NUM: "3"
+  RAILS_SERVE_STATIC_FILES: "true"
+  STREAMING_API_BASE_URL: "wss://streaming.{{ mastodon_local_domain }}"
+
+

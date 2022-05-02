@@ -1,0 +1,78 @@
+---
+
+- name: create mastodon local directories
+  become: true
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: true
+  with_items:
+    - "{{ mastodon_data_location }}"
+    - "{{ mastodon_conf_location }}"
+
+- name: create mastodon app local directories
+  become: true
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: true
+  with_items:
+    - "{{ mastodon_data_location }}"
+    - "{{ mastodon_cache_location }}"
+    - "{{ mastodon_postgres_data_location }}"
+    - "{{ mastodon_es_data_location }}"
+    - "{{ mastodon_redis_cache_location }}"
+    - "{{ mastodon_redis_conf_location }}"
+
+- name: create mastodon app local directories
+  become: true
+  file:
+    owner: "{{ mastodon_default_puid }}"
+    path: "{{ item }}"
+    state: directory
+    recurse: true
+  with_items:
+    - "{{ mastodon_web_data_location }}"
+    - "{{ mastodon_sidekiq_data_location }}"
+
+- name: create a secrets file
+  become: true
+  copy:
+    force: false
+    content: "{}"
+    dest: "{{ mastodon_secrets_file_location }}"
+    mode: "0600"
+
+- name: slurp secret file
+  become: true
+  slurp:
+    src: "{{ mastodon_secrets_file_location }}"
+  register: slurped_secrets
+
+- set_fact:
+   secrets_json: "{{ slurped_secrets['content'] | b64decode | from_json }}"
+
+- name: enrich secrets
+  set_fact:
+      secrets_json: "{{ secrets_json | combine( {item: lookup('password', '/dev/null length=48 chars=ascii_letters,digits') } ) }}"
+  when: secrets_json[item] is undefined
+  with_items:
+    - "PostgresPassword"
+    - "ESPassword"
+    - "RedisPassword"
+
+- name: dump secrets file
+  become: true
+  copy:
+    content: "{{ secrets_json | to_nice_json }}"
+    dest: "{{ mastodon_secrets_file_location }}"
+    mode: "0600"
+
+- name: init redis conf file
+  become: true
+  ansible.builtin.lineinfile:
+    path: "{{ mastodon_redis_conf_location }}/redis.conf"
+    line: "requirepass {{ secrets_json.RedisPassword }}"
+    create: true
+
+- import_tasks: run_container.yml
