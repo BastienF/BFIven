@@ -1,0 +1,37 @@
+---
+
+# Name of the photoprism docker container
+photoprism_db_container_name: "photoprism_db"
+photoprism_app_container_name: "photoprism_app"
+
+photoprism_db_user: "photoprism"
+photoprism_db_name: "photoprism"
+
+photoprism_default_puid: "0"
+
+photoprism_root_location: "/data/containers/photoprism"
+
+photoprism_gallery_location: "{{ gallery_location }}"
+
+# Path on the host filesystem where will be the photoprism conf file
+photoprism_conf_location: "{{ photoprism_root_location }}/conf"
+
+# Path on the host filesystem where will be the photoprism data
+photoprism_data_location: "{{ photoprism_root_location }}/data"
+photoprism_maria_data_location: "{{ photoprism_data_location }}/db"
+
+photoprism_storage_location: "{{ photoprism_root_location }}/storage"
+
+photoprism_docker_networks:
+  - name: "{{ bfiven_docker_network }}"
+
+photoprism_secrets_file_location: "{{ photoprism_conf_location }}/secrets.json"
+
+photoprism_container_restart_policy: "always"
+
+photoprism_env_timezone: "Europe/Paris"
+
+photoprism_app_image_tag: "220517-bookworm"
+photoprism_maria_image_tag: "10.7"
+
+photoprism_local_domain: "photoprism.{{ domain }}"

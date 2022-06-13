@@ -15,3 +15,6 @@ syncthing_docker_networks:
   - name: "{{ bfiven_docker_network }}"
 
 syncthing_container_restart_policy: "always"
+
+synchting_container_custom_volumes:
+  - "/data/gallery:/custom-data/gallery"

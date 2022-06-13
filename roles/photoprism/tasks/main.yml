@@ -1,0 +1,66 @@
+---
+
+- name: create photoprism local directories
+  become: true
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: true
+  with_items:
+    - "{{ photoprism_data_location }}"
+    - "{{ photoprism_conf_location }}"
+    - "{{ photoprism_gallery_location }}"
+
+- name: create photoprism app local directories
+  become: true
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: true
+  with_items:
+    - "{{ photoprism_maria_data_location }}"
+
+- name: create photoprism app local directories
+  become: true
+  file:
+    owner: "{{ photoprism_default_puid }}"
+    path: "{{ item }}"
+    state: directory
+    recurse: true
+  with_items:
+    - "{{ photoprism_storage_location }}"
+
+- name: create a secrets file
+  become: true
+  copy:
+    force: false
+    content: "{}"
+    dest: "{{ photoprism_secrets_file_location }}"
+    mode: "0600"
+
+- name: slurp secret file
+  become: true
+  slurp:
+    src: "{{ photoprism_secrets_file_location }}"
+  register: slurped_secrets
+
+- set_fact:
+   secrets_json: "{{ slurped_secrets['content'] | b64decode | from_json }}"
+
+- name: enrich secrets
+  set_fact:
+      secrets_json: "{{ secrets_json | combine( {item: lookup('password', '/dev/null length=48 chars=ascii_letters,digits') } ) }}"
+  when: secrets_json[item] is undefined
+  with_items:
+    - "MariaUserPassword"
+    - "MariaRootPassword"
+    - "PhotoprismAdminPassword"
+
+- name: dump secrets file
+  become: true
+  copy:
+    content: "{{ secrets_json | to_nice_json }}"
+    dest: "{{ photoprism_secrets_file_location }}"
+    mode: "0600"
+
+- import_tasks: run_container.yml

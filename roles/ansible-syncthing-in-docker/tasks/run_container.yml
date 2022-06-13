@@ -17,9 +17,7 @@
     restart: "{{ syncthing_docker_restart | default(false) | bool }}"
     networks: "{{ syncthing_docker_networks }}"
     restart_policy: "{{ syncthing_container_restart_policy }}"
-    volumes:
-      - "{{ syncthing_conf_location }}:/config"
-      - "{{ syncthing_data_location }}:/data"
+    volumes: "{{ synchting_container_default_volumes + synchting_container_custom_volumes }}"
     env:
-      PGID: 0
-      PUID: 0
+      PGID: "0"
+      PUID: "0"

@@ -1,0 +1,5 @@
+---
+
+synchting_container_default_volumes:
+  - "{{ syncthing_conf_location }}:/config"
+  - "{{ syncthing_data_location }}:/data"

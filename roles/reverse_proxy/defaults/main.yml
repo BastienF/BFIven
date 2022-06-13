@@ -41,5 +41,9 @@ reverse_proxy_endpoints:
     host: "streaming.suivez.{{ domain }}"
     dest: "http://{{ mastodon_streaming_container_name }}:4000"
     host_gen_cert: true
+  photoprism:
+    host: "photoprism.{{ domain }}"
+    dest: "http://{{ photoprism_app_container_name }}"
+    host_gen_cert: true
 
 reverse_proxy_root_location: "/data/containers/{{ reverse_proxy_container_name }}"
