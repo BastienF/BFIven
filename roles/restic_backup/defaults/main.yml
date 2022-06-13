@@ -10,4 +10,4 @@ restic_backup_retention_policy: "--keep-daily 3 --keep-weekly 3 --keep-monthly 3
 restic_backup_cron_log : "/var/log/restic_backup.log"
 restic_backup_cron_err_log : "/var/log/restic_backup.err.log"
 
-restic_backup_paths_to_backup : ["/data/containers/mattermost", "/data/containers/bitwarden"]
+restic_backup_paths_to_backup : ["/data/containers/mattermost", "/data/containers/bitwarden", "/data/containers/mastodon", "/data/gallery"]
