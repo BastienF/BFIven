@@ -36,7 +36,7 @@
   become: true
   docker_container:
     name: "{{ mattermost_app_container_name }}"
-    image: mattermost/mattermost-team-edition:6.3
+    image: mattermost/mattermost-team-edition:7.2
     security_opts:
       - "no-new-privileges:true"
     pids_limit: 200
@@ -57,4 +57,4 @@
       MM_SQLSETTINGS_DRIVERNAME: postgres
       MM_SQLSETTINGS_DATASOURCE: "postgres://mmuser:{{ secrets_json.PostgresPassword|urlencode() }}@{{ mattermost_db_container_name }}:5432/mattermost?sslmode=disable&connect_timeout=10"
       MM_BLEVESETTINGS_INDEXDIR: "/mattermost/bleve-indexes"
-      MM_SERVICESETTINGS_SITEURL: "https://{{ mattermost_env_domain }}"
+      MM_SERVICESETTINGS_SITEURL: "{{ mattermost_env_domain }}"
