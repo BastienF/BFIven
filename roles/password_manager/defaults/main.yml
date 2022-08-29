@@ -2,6 +2,9 @@
 
 password_manager_container_name: "{{ password_manager_container }}"
 
+password_manager_domain: "passwords.{{ domain }}"
+password_manager_port: "80"
+
 password_manager_root_location: "/data/containers/{{ password_manager_container_name }}"
 password_manager_data_location: "{{ password_manager_root_location }}/data"
 
@@ -11,3 +14,15 @@ password_manager_docker_networks:
 password_manager_container_restart_policy: "always"
 
 password_manager_signups_allowed: "false"
+
+password_manager_traefik_labels:
+  - key: "traefik.http.routers.{{ password_manager_container_name }}.rule"
+    value: "Host(`{{ password_manager_domain }}`)"
+  - key: "traefik.http.services.{{ password_manager_container_name }}.loadbalancer.server.port"
+    value: "{{ password_manager_port }}"
+  - key: "traefik.http.routers.{{ password_manager_container_name }}.tls"
+    value: "true"
+  - key: "traefik.http.routers.{{ password_manager_container_name }}.tls.certresolver"
+    value: "lteResolver"
+  - key: "traefik.enable"
+    value: "true"

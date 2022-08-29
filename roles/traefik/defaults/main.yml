@@ -1,0 +1,35 @@
+---
+
+# Name of the traefik docker container
+traefik_container_name: "traefik"
+traefik_docker_proxy_container_name: "socket-proxy"
+
+traefik_docker_proxy_network:
+  name: "socket-proxy-secured"
+
+traefik_root_location: "/data/containers/{{ traefik_container_name }}"
+
+# Path on the host filesystem where will be the traefik conf file
+traefik_conf_location: "{{ traefik_root_location }}/conf"
+
+# Path on the host filesystem where will be the traefik cert files
+traefik_certs_location: "{{ traefik_root_location }}/certs"
+
+# Host exposed HTTP/HTTPS/Admin ports for traefik
+traefik_http_port: 80
+traefik_https_port: 443
+traefik_http_admin_port: 8080
+
+# Let's encrypt CA Server to use. If false or unset prod CA Server used
+traefik_le_staging: "{{ not (is_prod|default(false)|bool) }}"
+
+# Let's encrypt contact email address
+traefik_le_contact_email: "fiorentino.bastien@gmail.com"
+
+traefik_docker_networks:
+  - name: "{{ bfiven_docker_network }}"
+
+traefik_container_restart_policy: "always"
+traefik_docker_proxy_container_restart_policy: "always"
+
+traefik_https_only: true

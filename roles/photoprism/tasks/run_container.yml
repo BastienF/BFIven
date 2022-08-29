@@ -52,7 +52,7 @@
       PHOTOPRISM_UID: "{{ photoprism_default_puid }}"
       PHOTOPRISM_GID: "{{ photoprism_default_puid }}"
       PHOTOPRISM_ADMIN_PASSWORD: "{{ secrets_json.PhotoprismAdminPassword }}"
-      PHOTOPRISM_SITE_URL: "https://{{ photoprism_local_domain }}/"                # public server URL incl http:// or https:// and /path, :port is optional
+      PHOTOPRISM_SITE_URL: "https://{{ photoprism_domain }}/"                # public server URL incl http:// or https:// and /path, :port is optional
       PHOTOPRISM_HTTP_PORT: "80"
       PHOTOPRISM_ORIGINALS_LIMIT: "5000"                                           # file size limit for originals in MB (increase for high-res video)
       PHOTOPRISM_HTTP_COMPRESSION: "gzip"                                          # improves transfer speed and bandwidth utilization (none or gzip)
@@ -79,3 +79,4 @@
       PHOTOPRISM_SITE_DESCRIPTION: ""
       PHOTOPRISM_SITE_AUTHOR: ""
       HOME: "/photoprism"
+    labels: "{{ photoprism_traefik_labels | items2dict }}"

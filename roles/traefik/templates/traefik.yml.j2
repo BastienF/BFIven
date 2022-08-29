@@ -1,0 +1,34 @@
+entryPoints:
+  web:
+    address: ":80"
+{% if traefik_https_only|bool %}
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+{% endif %}
+
+  websecure:
+    address: ":443"
+
+log:
+  level: "INFO"
+
+certificatesResolvers:
+  lteResolver:
+    acme:
+      email: "{{ traefik_le_contact_email }}"
+      storage: "{{ traefik_container_certs_location }}/acme.json"
+{% if traefik_le_staging|bool %}
+      caServer: "https://acme-staging-v02.api.letsencrypt.org/directory"
+{% endif %}
+      httpChallenge:
+        entryPoint: web
+
+providers:
+  docker:
+    endpoint: "tcp://{{ traefik_docker_proxy_container_name }}:2375"
+    watch: true
+    network: "{{ bfiven_docker_network }}"
+    exposedbydefault: false

@@ -57,4 +57,5 @@
       MM_SQLSETTINGS_DRIVERNAME: postgres
       MM_SQLSETTINGS_DATASOURCE: "postgres://mmuser:{{ secrets_json.PostgresPassword|urlencode() }}@{{ mattermost_db_container_name }}:5432/mattermost?sslmode=disable&connect_timeout=10"
       MM_BLEVESETTINGS_INDEXDIR: "/mattermost/bleve-indexes"
-      MM_SERVICESETTINGS_SITEURL: "{{ mattermost_env_domain }}"
+      MM_SERVICESETTINGS_SITEURL: "https://{{ mattermost_domain }}"
+    labels: "{{ mattermost_traefik_labels | items2dict }}"

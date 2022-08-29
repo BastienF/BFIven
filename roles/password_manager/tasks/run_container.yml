@@ -21,3 +21,4 @@
       SIGNUPS_ALLOWED: "{{ password_manager_signups_allowed }}"
     volumes:
       - "{{ password_manager_data_location }}:/data"
+    labels: "{{ password_manager_traefik_labels | items2dict }}"

@@ -17,7 +17,8 @@
     restart: "{{ syncthing_docker_restart | default(false) | bool }}"
     networks: "{{ syncthing_docker_networks }}"
     restart_policy: "{{ syncthing_container_restart_policy }}"
-    volumes: "{{ synchting_container_default_volumes + synchting_container_custom_volumes }}"
+    volumes: "{{ synchting_container_default_volumes + syncthing_container_custom_volumes }}"
     env:
       PGID: "0"
       PUID: "0"
+    labels: "{{ syncthing_traefik_labels | items2dict }}"

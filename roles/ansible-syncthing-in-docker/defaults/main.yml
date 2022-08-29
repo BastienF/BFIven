@@ -3,6 +3,10 @@
 # Name of the syncthing docker container
 syncthing_container_name: "syncthing"
 
+syncthing_domain: "files.{{ domain }}"
+
+syncthing_web_port: "8384"
+
 syncthing_root_location: "/data/containers/{{ syncthing_container_name }}"
 
 # Path on the host filesystem where will be the syncthing conf file
@@ -16,5 +20,21 @@ syncthing_docker_networks:
 
 syncthing_container_restart_policy: "always"
 
-synchting_container_custom_volumes:
+syncthing_container_custom_volumes:
   - "/data/gallery:/custom-data/gallery"
+
+#syncthing_basic_auths: ["user1:$apr1$H6uskkkW$$IgXLP6ewTrSuBkTrqE8wj/", "user2:$apr1$H6uskkkW$$IgXLP6ewTrSuBkTrqE8wj/"]
+
+syncthing_traefik_labels:
+  - key: "traefik.http.routers.{{ syncthing_container_name }}.rule"
+    value: "Host(`{{ syncthing_domain }}`)"
+  - key: "traefik.http.services.{{ syncthing_container_name }}.loadbalancer.server.port"
+    value: "{{ syncthing_web_port }}"
+  - key: "traefik.http.routers.{{ syncthing_container_name }}.tls"
+    value: "true"
+  - key: "traefik.http.routers.{{ syncthing_container_name }}.tls.certresolver"
+    value: "lteResolver"
+  - key: "traefik.enable"
+    value: "true"
+  - key: "traefik.http.middlewares.{{ syncthing_container_name }}.basicauth.users"
+    value: "{{ syncthing_basic_auths | join('\n') }}"

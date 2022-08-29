@@ -1,0 +1,48 @@
+---
+
+- meta: flush_handlers
+
+- name: Create public networks
+  become: true
+  docker_network:
+    name: "{{ item.name }}"
+  with_items: "{{ traefik_docker_networks }}"
+
+- name: Create network docker proxy secured
+  become: true
+  docker_network:
+    name: "{{ traefik_docker_proxy_network.name }}"
+    internal: true
+
+- name: Start or restart docker proxy container
+  become: true
+  docker_container:
+    name: "{{ traefik_docker_proxy_container_name }}"
+    image: tecnativa/docker-socket-proxy:0.1.1
+    state: "{{ traefik_docker_proxy_docker_state | default('started') }}"
+    restart: "{{ traefik_docker_proxy_docker_restart | default(false) | bool }}"
+    network_mode: "{{ traefik_docker_proxy_network.name }}"
+    networks:
+      - "{{ traefik_docker_proxy_network }}"
+    restart_policy: "{{ traefik_docker_proxy_container_restart_policy }}"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    env:
+      CONTAINERS: "1"
+
+- name: Start or restart traefik container
+  become: true
+  docker_container:
+    name: "{{ traefik_container_name }}"
+    image: traefik:v2.8
+    state: "{{ traefik_docker_state | default('started') }}"
+    restart: "{{ traefik_docker_restart | default(false) | bool }}"
+    networks: "{{ traefik_docker_networks + [ traefik_docker_proxy_network ] }}"
+    restart_policy: "{{ traefik_container_restart_policy }}"
+    volumes:
+      - "{{ traefik_conf_location }}/traefik.yml:/etc/traefik/traefik.yml"
+      - "{{ traefik_certs_location }}:{{ traefik_container_certs_location }}"
+    ports:
+      - "{{ traefik_http_port }}:80"
+      - "{{ traefik_http_admin_port }}:8080"
+      - "{{ traefik_https_port }}:443"

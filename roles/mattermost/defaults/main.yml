@@ -34,7 +34,20 @@ mattermost_container_restart_policy: "always"
 
 mattermost_default_puid: "2000"
 
-mattermost_env_domain: "https://slack.{{ domain }}"
+mattermost_domain: "slack.{{ domain }}"
+mattermost_port: "8065"
 mattermost_env_timezone: "Europe/Paris"
 
 mattermost_postgres_image_tag: "14-alpine"
+
+mattermost_traefik_labels:
+  - key: "traefik.http.routers.{{ mattermost_app_container_name }}.rule"
+    value: "Host(`{{ mattermost_domain }}`)"
+  - key: "traefik.http.services.{{ mattermost_app_container_name }}.loadbalancer.server.port"
+    value: "{{ mattermost_port }}"
+  - key: "traefik.http.routers.{{ mattermost_app_container_name }}.tls"
+    value: "true"
+  - key: "traefik.http.routers.{{ mattermost_app_container_name }}.tls.certresolver"
+    value: "lteResolver"
+  - key: "traefik.enable"
+    value: "true"

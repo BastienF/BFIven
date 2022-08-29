@@ -34,4 +34,17 @@ photoprism_env_timezone: "Europe/Paris"
 photoprism_app_image_tag: "220517-bookworm"
 photoprism_maria_image_tag: "10.7"
 
-photoprism_local_domain: "photoprism.{{ domain }}"
+photoprism_domain: "photoprism.{{ domain }}"
+photoprism_port: "80"
+
+photoprism_traefik_labels:
+  - key: "traefik.http.routers.{{ photoprism_app_container_name }}.rule"
+    value: "Host(`{{ photoprism_domain }}`)"
+  - key: "traefik.http.services.{{ photoprism_app_container_name }}.loadbalancer.server.port"
+    value: "{{ photoprism_port }}"
+  - key: "traefik.http.routers.{{ photoprism_app_container_name }}.tls"
+    value: "true"
+  - key: "traefik.http.routers.{{ photoprism_app_container_name }}.tls.certresolver"
+    value: "lteResolver"
+  - key: "traefik.enable"
+    value: "true"

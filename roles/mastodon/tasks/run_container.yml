@@ -107,7 +107,7 @@
   docker_container:
     name: "{{ mastodon_web_container_name }}"
     image: "tootsuite/mastodon:{{ mastodon_image_tag }}"
-    command: bash -c "rm -f /mastodon/tmp/pids/server.pid; bundle exec rails s -p 3000"
+    command: bash -c "rm -f /mastodon/tmp/pids/server.pid; bundle exec rails s -p {{ mastodon_web_port }}"
     #security_opts:
     #  - "no-new-privileges:true"
     pids_limit: 200
@@ -120,6 +120,7 @@
     env: "{{ mastodon_env_conf }}"
     cpu_period: 100000
     cpu_quota: 50000
+    labels: "{{ mastodon_web_traefik_labels | items2dict }}"
 
 - name: Start or restart mastodon streaming container
   become: true
@@ -138,6 +139,7 @@
     env: "{{ mastodon_env_conf }}"
     cpu_period: 100000
     cpu_quota: 50000
+    labels: "{{ mastodon_streaming_traefik_labels | items2dict }}"
 
 - name: Start or restart mastodon sidekiq container
   become: true
