@@ -2,7 +2,7 @@
 
 # Name of the mattermost docker container
 mattermost_app_container_name: "mattermost_app"
-mattermost_db_container_name: "mattermost_db"
+mattermost_db_container_name: "mattermost_db_{{ mattermost_postgres_image_tag }}"
 
 mattermost_root_location: "/data/containers/mattermost"
 
@@ -12,7 +12,7 @@ mattermost_app_conf_location: "{{ mattermost_conf_location }}/app"
 
 # Path on the host filesystem where will be the mattermost data
 mattermost_data_location: "{{ mattermost_root_location }}/data"
-mattermost_postgres_data_location: "{{ mattermost_data_location }}/db"
+mattermost_postgres_data_location: "{{ mattermost_data_location }}/db_{{ mattermost_postgres_image_tag }}"
 mattermost_app_data_location: "{{ mattermost_data_location }}/app"
 
 # Path on the host filesystem where will be the mattermost logs
@@ -38,7 +38,7 @@ mattermost_domain: "slack.{{ domain }}"
 mattermost_port: "8065"
 mattermost_env_timezone: "Europe/Paris"
 
-mattermost_postgres_image_tag: "14-alpine"
+mattermost_postgres_image_tag: "15.4-alpine"
 
 mattermost_traefik_labels:
   - key: "traefik.http.routers.{{ mattermost_app_container_name }}.rule"

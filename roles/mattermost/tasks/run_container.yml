@@ -36,7 +36,7 @@
   become: true
   docker_container:
     name: "{{ mattermost_app_container_name }}"
-    image: mattermost/mattermost-team-edition:7.2
+    image: mattermost/mattermost-team-edition:8.1.0
     security_opts:
       - "no-new-privileges:true"
     pids_limit: 200
