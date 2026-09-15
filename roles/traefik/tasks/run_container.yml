@@ -34,7 +34,7 @@
   become: true
   docker_container:
     name: "{{ traefik_container_name }}"
-    image: traefik:v2.8
+    image: traefik:v2.10.4
     state: "{{ traefik_docker_state | default('started') }}"
     restart: "{{ traefik_docker_restart | default(false) | bool }}"
     networks: "{{ traefik_docker_networks + [ traefik_docker_proxy_network ] }}"
