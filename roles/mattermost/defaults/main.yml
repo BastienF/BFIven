@@ -38,7 +38,7 @@ mattermost_domain: "slack.{{ domain }}"
 mattermost_port: "8065"
 mattermost_env_timezone: "Europe/Paris"
 
-mattermost_postgres_image_tag: "15.4-alpine"
+mattermost_postgres_image_tag: "17-alpine3.20"
 
 mattermost_traefik_labels:
   - key: "traefik.http.routers.{{ mattermost_app_container_name }}.rule"
@@ -51,3 +51,7 @@ mattermost_traefik_labels:
     value: "lteResolver"
   - key: "traefik.enable"
     value: "true"
+  - key: "traefik.port"
+    value: "80"
+  - key: "traefik.docker.network"
+    value: "{{ bfiven_docker_network }}"
