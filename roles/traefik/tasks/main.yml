@@ -10,6 +10,7 @@
     - "{{ traefik_root_location }}"
     - "{{ traefik_conf_location }}"
     - "{{ traefik_certs_location }}"
+    - "{{ traefik_dynamic_conf_location }}"
 
 - name: "Create configuration"
   become: true

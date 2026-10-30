@@ -1,4 +1,4 @@
 ---
 
-dependencies:
-  - role: base/docker
+#dependencies:
+#  - role: base/docker

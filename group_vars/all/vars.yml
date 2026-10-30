@@ -14,3 +14,14 @@ jackett_container_name: "jackett"
 transmission_container_name: "transmission"
 media_location: "/data/media"
 gallery_location: "/data/gallery"
+
+# Traefik routes to services that are not containers (file provider): one file per role, reloaded on change
+traefik_dynamic_conf_location: "/data/containers/{{ reverse_proxy_container_name }}/dynamic"
+# Docker network through which Traefik reaches services running on the host itself, at the gateway address.
+# Only Traefik is attached to it: a host service accepts this subnet only (systemd IPAddressAllow).
+traefik_host_network:
+  name: "host-services"
+  bridge: "br-host-svc"
+  subnet: "172.30.99.0/29"
+  gateway: "172.30.99.1"
+

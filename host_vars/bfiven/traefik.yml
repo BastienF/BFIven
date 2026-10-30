@@ -1,0 +1,6 @@
+---
+
+# bibibox (VM of cooltown): 188.165.251.28:80/443 lands on it, and it relays 443 to this Traefik over TCP without
+# decrypting (SNI routing). It must send the PROXY protocol header so that the ipAllowList middlewares see the client.
+traefik_proxy_protocol_trusted_ips:
+  - "192.168.0.5"

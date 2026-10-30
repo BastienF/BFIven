@@ -8,6 +8,19 @@
     name: "{{ item.name }}"
   with_items: "{{ traefik_docker_networks }}"
 
+# Internal: no route out through it, Traefik keeps going out through the public networks. The host holds the
+# gateway address, where its services listen for Traefik.
+- name: Create host services network
+  become: true
+  docker_network:
+    name: "{{ traefik_host_network.name }}"
+    internal: true
+    driver_options:
+      com.docker.network.bridge.name: "{{ traefik_host_network.bridge }}"
+    ipam_config:
+      - subnet: "{{ traefik_host_network.subnet }}"
+        gateway: "{{ traefik_host_network.gateway }}"
+
 - name: Create network docker proxy secured
   become: true
   docker_network:
@@ -18,31 +31,35 @@
   become: true
   docker_container:
     name: "{{ traefik_docker_proxy_container_name }}"
-    image: tecnativa/docker-socket-proxy:0.1.1
+    image: lscr.io/linuxserver/socket-proxy:3.4.4
     state: "{{ traefik_docker_proxy_docker_state | default('started') }}"
     restart: "{{ traefik_docker_proxy_docker_restart | default(false) | bool }}"
     network_mode: "{{ traefik_docker_proxy_network.name }}"
     networks:
       - "{{ traefik_docker_proxy_network }}"
     restart_policy: "{{ traefik_docker_proxy_container_restart_policy }}"
+    read_only: true
+    tmpfs:
+      - /run
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
     env:
       CONTAINERS: "1"
+      NETWORKS: "1"
 
 - name: Start or restart traefik container
   become: true
   docker_container:
     name: "{{ traefik_container_name }}"
-    image: traefik:v2.10.4
+    image: traefik:v3.7.13
     state: "{{ traefik_docker_state | default('started') }}"
     restart: "{{ traefik_docker_restart | default(false) | bool }}"
-    networks: "{{ traefik_docker_networks + [ traefik_docker_proxy_network ] }}"
+    networks: "{{ traefik_docker_networks + [ traefik_docker_proxy_network, {'name': traefik_host_network.name} ] }}"
     restart_policy: "{{ traefik_container_restart_policy }}"
     volumes:
       - "{{ traefik_conf_location }}/traefik.yml:/etc/traefik/traefik.yml"
       - "{{ traefik_certs_location }}:{{ traefik_container_certs_location }}"
+      - "{{ traefik_dynamic_conf_location }}:{{ traefik_container_dynamic_conf_location }}:ro"
     ports:
       - "{{ traefik_http_port }}:80"
-      - "{{ traefik_http_admin_port }}:8080"
       - "{{ traefik_https_port }}:443"

@@ -1,3 +1,4 @@
 ---
 
 traefik_container_certs_location: "/etc/traefik/certs"
+traefik_container_dynamic_conf_location: "/etc/traefik/dynamic"

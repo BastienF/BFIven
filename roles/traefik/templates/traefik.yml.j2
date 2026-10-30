@@ -11,6 +11,12 @@ entryPoints:
 
   websecure:
     address: ":443"
+{% if traefik_proxy_protocol_trusted_ips | length > 0 %}
+    # Client address sent by a TCP relay in front (PROXY protocol header), used by the ipAllowList middlewares.
+    # Optional: connections from these addresses without the header, and from any other address, work as before.
+    proxyProtocol:
+      trustedIPs: {{ traefik_proxy_protocol_trusted_ips | to_json }}
+{% endif %}
 
 log:
   level: "INFO"
@@ -32,3 +38,7 @@ providers:
     watch: true
     network: "{{ bfiven_docker_network }}"
     exposedbydefault: false
+  # Services running on the host, not in a container (see traefik_host_network)
+  file:
+    directory: "{{ traefik_container_dynamic_conf_location }}"
+    watch: true
