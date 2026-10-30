@@ -1,0 +1,15 @@
+# {{ ansible_managed }}
+# (server_tokens is already off in Debian's nginx.conf)
+
+server {
+    listen 80 default_server;
+    server_name _;
+
+    location /.well-known/acme-challenge/ {
+        root {{ blocky_acme_webroot_location }};
+    }
+
+    location / {
+        return 404;
+    }
+}

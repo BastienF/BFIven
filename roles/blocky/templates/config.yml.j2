@@ -1,0 +1,83 @@
+# {{ ansible_managed }}
+
+upstreams:
+  init:
+    strategy: fast
+  groups:
+    default:
+{% for upstream in blocky_upstreams %}
+      - "{{ upstream }}"
+{% endfor %}
+  # In order: the next upstream is only used when the previous one fails
+  strategy: strict
+  timeout: 2s
+
+# The VPS has no public IPv6
+connectIPVersion: v4
+{% if blocky_custom_dns %}
+
+customDNS:
+  mapping:
+{% for entry in blocky_custom_dns %}
+    {{ entry.name }}: {{ entry.address }}
+{% endfor %}
+{% endif %}
+
+blocking:
+  denylists:
+    ads:
+{% for list in blocky_denylists %}
+      - "{{ list }}"
+{% endfor %}
+{% if blocky_allowlist %}
+  allowlists:
+    ads:
+      - |
+{% for allowed_domain in blocky_allowlist %}
+        {{ allowed_domain }}
+{% endfor %}
+{% endif %}
+  clientGroupsBlock:
+    default:
+      - ads
+  blockType: zeroIp
+  blockTTL: 1m
+  loading:
+    refreshPeriod: 24h
+    # Serve queries right away, lists load in the background
+    strategy: fast
+    downloads:
+      timeout: 60s
+
+caching:
+  # Clients are ~100 ms away: keep answers a bit longer, and refresh the popular ones before they expire
+  minTime: 5m
+  prefetching: true
+
+# DNS-over-TLS clients, by source IP. DoH ones all come from nginx (127.0.0.1), which limits them itself.
+rateLimit:
+  enable: true
+  rate: {{ blocky_dot_rate_limit }}
+  burst: {{ blocky_dot_rate_limit * 2 }}
+  allowlist:
+    - 127.0.0.1
+
+queryLog:
+  type: none
+
+ports:
+  # Plain DNS, for local checks only
+  dns: 127.0.0.1:53
+  tls: 853
+  # DoH (and REST API), only reachable through nginx
+  http: 127.0.0.1:{{ blocky_http_port }}
+  dohPath: {{ blocky_doh_path }}
+
+certFile: {{ blocky_tls_location }}/fullchain.pem
+keyFile: {{ blocky_tls_location }}/privkey.pem
+minTlsServeVersion: 1.2
+
+log:
+  level: info
+  # Masks queried domains in the logs
+  privacy: true

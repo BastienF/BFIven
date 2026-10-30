@@ -1,0 +1,43 @@
+---
+
+blocky_version: "0.35.0"
+blocky_archive_url: "https://github.com/0xERR0R/blocky/releases/download/v{{ blocky_version }}/blocky_v{{ blocky_version }}_Linux_x86_64.tar.gz"
+# From blocky_checksums.txt of the release: update it with the version
+blocky_archive_checksum: "sha256:97ae4257e4f2ea7ee4e0622fca152019eb92224d81b41b2549f064e4cef5584e"
+
+# Must resolve to this host: DoT (Android "Private DNS") and DoH (https://<domain>/dns-query)
+blocky_domain: "dns.{{ domain }}"
+
+blocky_le_contact_email: "fiorentino.bastien@gmail.com"
+blocky_le_staging: "{{ not (is_prod | default(false) | bool) }}"
+
+# Tried in order, the next one only when the previous one fails.
+# DNS4EU resolves from Europe, so CDNs answer with European servers although this VPS is in the US.
+blocky_upstreams:
+  - "https://unfiltered.joindns4.eu/dns-query"
+  - "tcp-tls:dns.quad9.net"
+
+blocky_denylists:
+  - "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro.txt"
+# Domains to unblock when a list breaks something (subdomains included)
+blocky_allowlist: []
+
+# Local answers (subdomains included), e.g. VPN-only services: [{name, address}]
+blocky_custom_dns: []
+
+# Per source IP, against abuse of this public resolver
+blocky_dot_rate_limit: 50
+blocky_doh_rate_limit: "20r/s"
+
+blocky_user: "blocky"
+blocky_install_location: "/opt/blocky"
+blocky_binary_location: "/usr/local/bin/blocky"
+blocky_conf_location: "/etc/blocky"
+blocky_config_file_location: "{{ blocky_conf_location }}/config.yml"
+blocky_tls_location: "{{ blocky_conf_location }}/tls"
+# Plain HTTP listener on localhost, only reached through nginx
+blocky_http_port: 4000
+blocky_doh_path: "/dns-query"
+
+blocky_acme_webroot_location: "/var/www/letsencrypt"
+blocky_le_cert_location: "/etc/letsencrypt/live/{{ blocky_domain }}"

@@ -1,0 +1,182 @@
+---
+
+# Let's Encrypt validates through port 80 of the address the domain points to
+- name: resolve blocky domain
+  command: "getent ahostsv4 {{ blocky_domain }}"
+  register: blocky_domain_resolution
+  changed_when: false
+  failed_when: false
+
+- name: check that the blocky domain points to this host
+  assert:
+    that:
+      - ansible_default_ipv4.address in blocky_domain_resolution.stdout
+    fail_msg: "Create a DNS record {{ blocky_domain }} A {{ ansible_default_ipv4.address }} (and open TCP 80, 443 and 853 in the provider's firewall)"
+
+- name: open DNS-over-TLS, DNS-over-HTTPS and ACME ports
+  become: true
+  template:
+    src: blocky.nft.j2
+    dest: "{{ nftables_firewall_include_location }}/blocky.nft"
+    mode: "0644"
+    validate: "/usr/sbin/nft -c -f %s"
+  notify: reload nftables
+
+- name: install nginx and certbot
+  become: true
+  apt:
+    name:
+      - nginx
+      - certbot
+    state: present
+
+- name: remove nginx default site
+  become: true
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: reload nginx
+
+- name: create ACME challenges directory
+  become: true
+  file:
+    path: "{{ blocky_acme_webroot_location }}"
+    state: directory
+    mode: "0755"
+
+- name: serve ACME challenges
+  become: true
+  template:
+    src: nginx-acme.conf.j2
+    dest: /etc/nginx/conf.d/acme.conf
+    mode: "0644"
+  notify: reload nginx
+
+- name: enable nginx
+  become: true
+  service:
+    name: nginx
+    state: started
+    enabled: true
+
+# The firewall and nginx must be ready before Let's Encrypt calls port 80
+- meta: flush_handlers
+
+- name: obtain certificate
+  become: true
+  command: >-
+    certbot certonly --webroot --webroot-path {{ blocky_acme_webroot_location }}
+    --domain {{ blocky_domain }} --email {{ blocky_le_contact_email }}
+    --agree-tos --non-interactive {{ '--test-cert' if blocky_le_staging | bool else '' }}
+  args:
+    creates: "{{ blocky_le_cert_location }}/fullchain.pem"
+
+- name: enable certificate renewal
+  become: true
+  service:
+    name: certbot.timer
+    state: started
+    enabled: true
+
+# On renewals, certbot runs this hook, which does what "copy certificate for blocky" does
+- name: deploy certificate renewal hook
+  become: true
+  template:
+    src: certbot-deploy-hook.sh.j2
+    dest: /etc/letsencrypt/renewal-hooks/deploy/blocky.sh
+    mode: "0755"
+
+- name: create blocky system user
+  become: true
+  user:
+    name: "{{ blocky_user }}"
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false
+
+- name: create blocky directories
+  become: true
+  file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  with_items:
+    - { path: "{{ blocky_install_location }}/{{ blocky_version }}", group: root, mode: "0755" }
+    - { path: "{{ blocky_conf_location }}", group: "{{ blocky_user }}", mode: "0750" }
+    - { path: "{{ blocky_tls_location }}", group: "{{ blocky_user }}", mode: "0750" }
+
+- name: download blocky
+  become: true
+  get_url:
+    url: "{{ blocky_archive_url }}"
+    dest: "{{ blocky_install_location }}/blocky_v{{ blocky_version }}.tar.gz"
+    checksum: "{{ blocky_archive_checksum }}"
+    mode: "0644"
+
+- name: extract blocky
+  become: true
+  unarchive:
+    src: "{{ blocky_install_location }}/blocky_v{{ blocky_version }}.tar.gz"
+    dest: "{{ blocky_install_location }}/{{ blocky_version }}"
+    remote_src: true
+    creates: "{{ blocky_install_location }}/{{ blocky_version }}/blocky"
+
+- name: install blocky binary
+  become: true
+  file:
+    src: "{{ blocky_install_location }}/{{ blocky_version }}/blocky"
+    dest: "{{ blocky_binary_location }}"
+    state: link
+  notify: restart blocky
+
+# Blocky does not run as root: it reads its own copy of the certificate
+- name: copy certificate for blocky
+  become: true
+  copy:
+    src: "{{ blocky_le_cert_location }}/{{ item }}"
+    dest: "{{ blocky_tls_location }}/{{ item }}"
+    remote_src: true
+    owner: root
+    group: "{{ blocky_user }}"
+    mode: "0640"
+  with_items:
+    - fullchain.pem
+    - privkey.pem
+  notify: restart blocky
+
+- name: serve DNS-over-HTTPS
+  become: true
+  template:
+    src: nginx-doh.conf.j2
+    dest: /etc/nginx/conf.d/doh.conf
+    mode: "0644"
+  notify: reload nginx
+
+- name: deploy blocky config
+  become: true
+  template:
+    src: config.yml.j2
+    dest: "{{ blocky_config_file_location }}"
+    owner: root
+    group: "{{ blocky_user }}"
+    mode: "0640"
+    validate: "{{ blocky_binary_location }} validate --config %s"
+  notify: restart blocky
+
+- name: deploy blocky service
+  become: true
+  template:
+    src: blocky.service.j2
+    dest: /etc/systemd/system/blocky.service
+    mode: "0644"
+  notify: restart blocky
+
+- name: enable blocky
+  become: true
+  systemd:
+    name: blocky
+    state: started
+    enabled: true
+    daemon_reload: true

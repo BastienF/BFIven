@@ -1,0 +1,34 @@
+# {{ ansible_managed }}
+
+[Unit]
+Description=Blocky DNS ad-blocker (DNS-over-TLS / DNS-over-HTTPS)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User={{ blocky_user }}
+Group={{ blocky_user }}
+ExecStart={{ blocky_binary_location }} --config {{ blocky_config_file_location }}
+Restart=on-failure
+RestartSec=5s
+
+# Ports 53 and 853 without root
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+RestrictNamespaces=true
+LockPersonality=true
+SystemCallArchitectures=native
+# The VPS has ~850 MB of RAM
+MemoryMax=300M
+
+[Install]
+WantedBy=multi-user.target

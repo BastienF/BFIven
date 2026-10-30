@@ -1,0 +1,28 @@
+# {{ ansible_managed }}
+
+limit_req_zone $binary_remote_addr zone=doh:10m rate={{ blocky_doh_rate_limit }};
+
+server {
+    listen 443 ssl default_server;
+    http2 on;
+    server_name {{ blocky_domain }};
+
+    ssl_certificate {{ blocky_le_cert_location }}/fullchain.pem;
+    ssl_certificate_key {{ blocky_le_cert_location }}/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    # GET requests carry the DNS query in the URL
+    access_log off;
+
+    # Only DoH is exposed: blocky's REST API (which can e.g. disable blocking) stays on localhost
+    location = {{ blocky_doh_path }} {
+        limit_req zone=doh burst=100 nodelay;
+        proxy_pass http://127.0.0.1:{{ blocky_http_port }};
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+    }
+
+    location / {
+        return 404;
+    }
+}

@@ -1,0 +1,10 @@
+#!/bin/sh
+# {{ ansible_managed }}
+# Run by certbot after each renewal: blocky (not root) reads its own copy of the certificate
+set -e
+
+[ "$RENEWED_LINEAGE" = "{{ blocky_le_cert_location }}" ] || exit 0
+
+install -o root -g {{ blocky_user }} -m 0640 "$RENEWED_LINEAGE/fullchain.pem" "$RENEWED_LINEAGE/privkey.pem" {{ blocky_tls_location }}/
+systemctl restart blocky
+systemctl reload nginx

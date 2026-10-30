@@ -1,0 +1,8 @@
+---
+
+# VPN-only services of bfiven (Traefik only accepts the tunnel network): Gatus' dashboard, Coursator's and the PAS'
+# web front ends
+blocky_custom_dns:
+  - { name: "status.{{ domain }}", address: "10.100.0.2" }
+  - { name: "courses.{{ domain }}", address: "10.100.0.2" }
+  - { name: "pas.{{ domain }}", address: "10.100.0.2" }

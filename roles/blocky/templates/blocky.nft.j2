@@ -1,0 +1,5 @@
+# {{ ansible_managed }}
+# Included at the end of /etc/nftables.conf: appends to its inet filter chains
+
+# 80: Let's Encrypt validation, 443: DNS-over-HTTPS (nginx), 853: DNS-over-TLS (blocky)
+add rule inet filter input tcp dport { 80, 443, 853 } accept

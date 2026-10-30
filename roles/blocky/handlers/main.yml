@@ -1,0 +1,22 @@
+---
+
+- name: restart blocky
+  become: true
+  systemd:
+    name: blocky
+    state: restarted
+    daemon_reload: true
+
+# A failed check leaves the running nginx untouched
+- name: check nginx config
+  become: true
+  command: /usr/sbin/nginx -t -q
+  changed_when: false
+  listen: reload nginx
+
+- name: reload nginx service
+  become: true
+  service:
+    name: nginx
+    state: reloaded
+  listen: reload nginx
