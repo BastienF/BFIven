@@ -1,0 +1,22 @@
+---
+
+# bfiven is a VM behind this hypervisor's NAT: its public address and the port the exit instance sends to
+coursator_sortie_forward_public_ip: "{{ coursator_sortie_client_public_ip }}"
+coursator_sortie_forward_port: "{{ coursator_sortie_client_port }}"
+coursator_sortie_forward_target_ip: "192.168.0.10"
+# Hand-written script of the hypervisor, sourced at boot by /etc/network/if-pre-up.d/load-iptables: rebuilds the
+# nat_vm-bfiven_* chains
+coursator_sortie_forward_vm_chain: "nat_vm-bfiven"
+coursator_sortie_forward_script: "/etc/iptables/{{ coursator_sortie_forward_vm_chain }}.load"
+coursator_sortie_forward_rules:
+  - table: "nat"
+    chain: "{{ coursator_sortie_forward_vm_chain }}_PREROUTING"
+    spec: >-
+      -d {{ coursator_sortie_forward_public_ip }} -p udp --dport {{ coursator_sortie_forward_port }}
+      -j DNAT --to {{ coursator_sortie_forward_target_ip }}:{{ coursator_sortie_forward_port }}
+  - table: "filter"
+    chain: "{{ coursator_sortie_forward_vm_chain }}_INPUT"
+    spec: "-d {{ coursator_sortie_forward_public_ip }} -p udp --dport {{ coursator_sortie_forward_port }} -j ACCEPT"
+  - table: "filter"
+    chain: "{{ coursator_sortie_forward_vm_chain }}_OUTPUT"
+    spec: "-p udp --dport {{ coursator_sortie_forward_port }} -j ACCEPT"

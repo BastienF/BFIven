@@ -1,0 +1,18 @@
+# {{ ansible_managed }}
+# No endpoint: the exit instance opens the tunnel, WireGuard follows its current EIP after each rotation.
+# No route in the main table (Table = off): only the packets marked by claude-sortie-marque use the tunnel.
+
+[Interface]
+Address = {{ coursator_sortie_client_address }}/{{ coursator_sortie_prefix }}
+ListenPort = {{ coursator_sortie_client_port }}
+MTU = {{ coursator_sortie_mtu }}
+PrivateKey = {{ coursator_sortie_client_private_key }}
+Table = off
+# Excluded from the marking (see claude-sortie-marque)
+FwMark = {{ coursator_sortie_client_wireguard_mark }}
+PostUp = ip route replace default dev %i table {{ coursator_sortie_client_table_name }}
+
+[Peer]
+# coursator-sortie (AWS)
+PublicKey = {{ hostvars[coursator_sortie_client_gateway_host].coursator_sortie_gateway_public_key }}
+AllowedIPs = 0.0.0.0/0

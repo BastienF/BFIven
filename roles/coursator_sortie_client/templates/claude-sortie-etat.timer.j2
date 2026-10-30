@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+
+[Unit]
+Description=coursator exit tunnel: refresh the state file every {{ coursator_sortie_client_state_interval }}
+
+[Timer]
+OnBootSec=10s
+OnUnitActiveSec={{ coursator_sortie_client_state_interval }}
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

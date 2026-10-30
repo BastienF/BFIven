@@ -1,0 +1,24 @@
+#!/bin/sh
+# {{ ansible_managed }}
+# Routes {{ coursator_sortie_client_service }}'s traffic through {{ coursator_sortie_interface }}. Run as root by its
+# ExecStartPre, when its cgroup already exists and nothing runs in it yet: no packet leaves unmarked.
+set -eu
+
+# Marked packets use table {{ coursator_sortie_client_table_name }} only: when the tunnel is down, its unreachable route
+# remains, never a way out through the public address
+ip -4 rule show | grep -q "fwmark {{ coursator_sortie_client_mark }} lookup {{ coursator_sortie_client_table_name }}" \
+    || ip -4 rule add fwmark {{ coursator_sortie_client_mark }} lookup {{ coursator_sortie_client_table_name }} priority {{ coursator_sortie_client_rule_priority }}
+ip -6 rule show | grep -q "fwmark {{ coursator_sortie_client_mark }} lookup {{ coursator_sortie_client_table_name }}" \
+    || ip -6 rule add fwmark {{ coursator_sortie_client_mark }} lookup {{ coursator_sortie_client_table_name }} priority {{ coursator_sortie_client_rule_priority }}
+ip -4 route replace unreachable default metric 4096 table {{ coursator_sortie_client_table_name }}
+ip -6 route replace unreachable default metric 4096 table {{ coursator_sortie_client_table_name }}
+
+nft list table inet claude_sortie > /dev/null 2>&1 || nft -f {{ coursator_sortie_client_nft_file }}
+
+# The cgroup's current inode: the rule of a previous start no longer matches anything. WireGuard's own packets
+# (FwMark of {{ coursator_sortie_interface }}) still carry a Chrome socket: left alone, or they would loop in the tunnel.
+nft -f - <<NFT
+flush chain inet claude_sortie marque
+add rule inet claude_sortie marque meta mark != {{ coursator_sortie_client_wireguard_mark }} socket cgroupv2 level 2 "{{ coursator_sortie_client_cgroup }}" ip daddr != { {{ coursator_sortie_client_bypass_networks_v4 | join(', ') }} } counter meta mark set {{ coursator_sortie_client_mark }}
+add rule inet claude_sortie marque meta mark != {{ coursator_sortie_client_wireguard_mark }} socket cgroupv2 level 2 "{{ coursator_sortie_client_cgroup }}" ip6 daddr != { {{ coursator_sortie_client_bypass_networks_v6 | join(', ') }} } counter meta mark set {{ coursator_sortie_client_mark }}
+NFT

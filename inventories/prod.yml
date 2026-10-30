@@ -16,6 +16,10 @@ all:
           is_prod: true
           domain: "moi.ovh"
           ansible_user: "ansible"
+    # KVM host of bfiven, which it NATs: only bfiven's coursator exit tunnel port is managed (coursator_sortie_forward)
+    hypervisor:
+      hosts:
+        cooltown:
     local:
       hosts:
         localhost:

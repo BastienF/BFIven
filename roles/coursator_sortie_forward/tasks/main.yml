@@ -1,0 +1,25 @@
+---
+
+# Only adds the WireGuard port of bfiven's exit tunnel, in the same form as the script's other ports: the rest of the
+# hypervisor is not managed by this repository.
+
+- name: forward exit tunnel port at boot
+  become: true
+  blockinfile:
+    path: "{{ coursator_sortie_forward_script }}"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK coursator_sortie"
+    insertbefore: "^## Met en place les règles"
+    block: |
+      {% for rule in coursator_sortie_forward_rules %}
+      iptables -t {{ rule.table }} -C {{ rule.chain }} {{ rule.spec }} || iptables -t {{ rule.table }} -A {{ rule.chain }} {{ rule.spec }}
+      {% endfor %}
+
+# Live, without reloading the script: inserted first, before the chains' final RETURN
+- name: forward exit tunnel port now
+  become: true
+  shell: >-
+    iptables -t {{ item.table }} -C {{ item.chain }} {{ item.spec }} 2>/dev/null
+    || { iptables -t {{ item.table }} -I {{ item.chain }} 1 {{ item.spec }} && echo inserted; }
+  with_items: "{{ coursator_sortie_forward_rules }}"
+  register: coursator_sortie_forward_live
+  changed_when: "'inserted' in coursator_sortie_forward_live.stdout"

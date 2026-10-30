@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+# All of Chrome's traffic goes out through the coursator exit instance (AWS), never through bfiven's public address
+
+[Unit]
+Wants={{ coursator_sortie_client_wireguard_unit }}
+After={{ coursator_sortie_client_wireguard_unit }}
+
+[Service]
+# Root ("+"), outside the confinement: routing rules and nftables
+ExecStartPre=+{{ coursator_sortie_client_mark_script }}

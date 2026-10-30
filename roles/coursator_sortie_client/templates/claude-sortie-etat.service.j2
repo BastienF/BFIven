@@ -1,0 +1,9 @@
+# {{ ansible_managed }}
+
+[Unit]
+Description=coursator exit tunnel: state file for coursator
+After={{ coursator_sortie_client_wireguard_unit }}
+
+[Service]
+Type=oneshot
+ExecStart={{ coursator_sortie_client_state_script }}

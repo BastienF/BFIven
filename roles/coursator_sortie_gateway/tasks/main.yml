@@ -1,0 +1,93 @@
+---
+
+- name: check that bfiven's key was read first
+  assert:
+    that:
+      - hostvars[coursator_sortie_gateway_client_host].coursator_sortie_client_public_key is defined
+    fail_msg: "Run run_coursator_sortie.yml as a whole: its client key play reads bfiven's public key."
+
+- name: install gateway packages
+  become: true
+  apt:
+    name:
+      - wireguard-tools
+      - nftables
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: enable IPv4 forwarding
+  become: true
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    sysctl_file: /etc/sysctl.d/90-coursator-sortie.conf
+
+# Nothing is routed in IPv6
+- name: disable IPv6 forwarding
+  become: true
+  sysctl:
+    name: net.ipv6.conf.all.forwarding
+    value: "0"
+    sysctl_file: /etc/sysctl.d/90-coursator-sortie.conf
+
+- name: deploy gateway firewall rules
+  become: true
+  template:
+    src: nftables.conf.j2
+    dest: /etc/nftables.conf
+    mode: "0755"
+    validate: "/usr/sbin/nft -c -f %s"
+  notify: reload gateway nftables
+
+- name: enable gateway firewall
+  become: true
+  service:
+    name: nftables
+    state: started
+    enabled: true
+
+- name: create wireguard directory
+  become: true
+  file:
+    path: "{{ coursator_sortie_gateway_conf_location }}"
+    state: directory
+    mode: "0700"
+
+# Generated once on the instance and never leaves it
+- name: generate gateway key pair
+  become: true
+  shell: "umask 077 && wg genkey | tee {{ coursator_sortie_interface }}.key | wg pubkey > {{ coursator_sortie_interface }}.pub"
+  args:
+    chdir: "{{ coursator_sortie_gateway_conf_location }}"
+    creates: "{{ coursator_sortie_interface }}.key"
+
+- name: read gateway keys
+  become: true
+  slurp:
+    src: "{{ coursator_sortie_gateway_conf_location }}/{{ coursator_sortie_interface }}.{{ item }}"
+  with_items: ["key", "pub"]
+  register: coursator_sortie_gateway_keys
+  no_log: true
+
+# The public key is read by the client play
+- set_fact:
+    coursator_sortie_gateway_private_key: "{{ coursator_sortie_gateway_keys.results[0].content | b64decode | trim }}"
+    coursator_sortie_gateway_public_key: "{{ coursator_sortie_gateway_keys.results[1].content | b64decode | trim }}"
+  no_log: true
+
+- name: deploy gateway wireguard config
+  become: true
+  template:
+    src: wg-sortie.conf.j2
+    dest: "{{ coursator_sortie_gateway_conf_location }}/{{ coursator_sortie_interface }}.conf"
+    mode: "0600"
+  notify: restart gateway wireguard
+  no_log: true
+
+- name: enable gateway wireguard
+  become: true
+  service:
+    name: "wg-quick@{{ coursator_sortie_interface }}"
+    state: started
+    enabled: true

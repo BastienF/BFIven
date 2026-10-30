@@ -1,0 +1,36 @@
+#!/usr/sbin/nft -f
+# {{ ansible_managed }}
+
+# A table of its own: claude_agent's and Docker's tables are left alone
+table inet claude_sortie
+delete table inet claude_sortie
+
+table inet claude_sortie {
+    # Marks Chrome's packets, routed through table {{ coursator_sortie_client_table_name }}. Filled by
+    # {{ coursator_sortie_client_mark_script | basename }} at each Chrome start: nft resolves the cgroup's path once, when
+    # the rule is loaded.
+    chain marque {
+        type route hook output priority mangle; policy accept;
+    }
+
+    # Leak guard: never through the public interface
+    chain garde {
+        type filter hook postrouting priority filter; policy accept;
+
+        oifname "{{ coursator_sortie_client_public_interface }}" meta mark {{ coursator_sortie_client_mark }} counter drop
+    }
+
+    # Chrome's sockets picked the public interface's source address: the instance only accepts the tunnel's one
+    chain nat {
+        type nat hook postrouting priority srcnat; policy accept;
+
+        oifname "{{ coursator_sortie_interface }}" masquerade
+    }
+
+    # Chrome's TCP segments must fit in the tunnel
+    chain clamp {
+        type filter hook postrouting priority mangle; policy accept;
+
+        oifname "{{ coursator_sortie_interface }}" tcp flags syn tcp option maxseg size set rt mtu
+    }
+}

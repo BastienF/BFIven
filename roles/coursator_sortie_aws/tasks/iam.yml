@@ -1,0 +1,90 @@
+---
+
+# coursator's own credentials: read the instance and the EIPs, start/stop the instance, rotate the EIP.
+# No RunInstances, TerminateInstances or IAM action.
+- name: create coursator iam user
+  amazon.aws.iam_user:
+    name: "{{ coursator_sortie_aws_iam_user }}"
+    tags:
+      projet: "{{ coursator_sortie_aws_tag }}"
+    state: present
+
+- name: grant coursator iam user its policy
+  amazon.aws.iam_policy:
+    iam_type: user
+    iam_name: "{{ coursator_sortie_aws_iam_user }}"
+    policy_name: "{{ coursator_sortie_aws_name }}"
+    policy_json: "{{ lookup('template', 'iam-policy.json.j2') }}"
+    state: present
+  vars:
+    arn_prefix: "arn:aws:ec2:{{ coursator_sortie_aws_region }}:{{ coursator_sortie_aws_caller.account }}"
+
+- name: check vaulted access key
+  stat:
+    path: "{{ coursator_sortie_aws_vault_file }}"
+  register: coursator_sortie_aws_vault
+
+- name: load vaulted access key
+  include_vars:
+    file: "{{ coursator_sortie_aws_vault_file }}"
+  when: coursator_sortie_aws_vault.stat.exists
+  no_log: true
+
+- name: list coursator access keys
+  amazon.aws.iam_access_key_info:
+    user_name: "{{ coursator_sortie_aws_iam_user }}"
+  register: coursator_sortie_aws_access_keys
+
+# A new key only when the vaulted one is missing or no longer active in AWS
+- name: create coursator access key
+  when: coursator_sortie_iam_access_key_id | default('') not in coursator_sortie_aws_active_key_ids
+  vars:
+    coursator_sortie_aws_active_key_ids: >-
+      {{ coursator_sortie_aws_access_keys.access_keys | selectattr('status', 'equalto', 'Active')
+         | map(attribute='access_key_id') | list }}
+  block:
+    # The previous keys, lost or inactive, first: AWS allows two keys per user
+    - name: delete previous access keys
+      amazon.aws.iam_access_key:
+        user_name: "{{ coursator_sortie_aws_iam_user }}"
+        id: "{{ item }}"
+        state: absent
+      with_items: "{{ coursator_sortie_aws_access_keys.access_keys | map(attribute='access_key_id') | list }}"
+
+    - name: create access key
+      amazon.aws.iam_access_key:
+        user_name: "{{ coursator_sortie_aws_iam_user }}"
+        state: present
+      register: coursator_sortie_aws_new_key
+      no_log: true
+
+    - set_fact:
+        coursator_sortie_iam_access_key_id: "{{ coursator_sortie_aws_new_key.access_key.access_key_id }}"
+        coursator_sortie_iam_secret_access_key: "{{ coursator_sortie_aws_new_key.secret_access_key }}"
+      no_log: true
+
+    - name: create vault directory
+      file:
+        path: "{{ coursator_sortie_aws_vault_file | dirname }}"
+        state: directory
+        mode: "0755"
+
+    - name: vault access key
+      command:
+        argv:
+          - ansible-vault
+          - encrypt
+          - --vault-password-file
+          - "{{ coursator_sortie_aws_vault_password_file | expanduser }}"
+          - --output
+          - "{{ coursator_sortie_aws_vault_file }}"
+        stdin: |
+          coursator_sortie_iam_access_key_id: "{{ coursator_sortie_iam_access_key_id }}"
+          coursator_sortie_iam_secret_access_key: "{{ coursator_sortie_iam_secret_access_key }}"
+      no_log: true
+
+# Read by the client play: copied to bfiven
+- name: share coursator credentials
+  set_fact:
+    coursator_sortie_aws_credentials: "{{ lookup('template', 'sortie-aws.json.j2') }}"
+  no_log: true

@@ -1,0 +1,15 @@
+# {{ ansible_managed }}
+# This end opens the tunnel and keeps it open: bfiven has no endpoint for it and follows its current EIP
+
+[Interface]
+Address = {{ coursator_sortie_gateway_address }}/{{ coursator_sortie_prefix }}
+ListenPort = {{ coursator_sortie_gateway_port }}
+MTU = {{ coursator_sortie_mtu }}
+PrivateKey = {{ coursator_sortie_gateway_private_key }}
+
+[Peer]
+# bfiven
+PublicKey = {{ hostvars[coursator_sortie_gateway_client_host].coursator_sortie_client_public_key }}
+Endpoint = {{ coursator_sortie_client_public_ip }}:{{ coursator_sortie_client_port }}
+AllowedIPs = {{ coursator_sortie_client_address }}/32
+PersistentKeepalive = 25

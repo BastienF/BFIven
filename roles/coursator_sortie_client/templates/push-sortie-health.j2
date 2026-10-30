@@ -1,0 +1,80 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# Pushes the health of Chrome's exit tunnel to Gatus:
+# - {{ coursator_sortie_client_health_key }}: the tunnel works (recent handshake, HTTPS out through the instance)
+# - {{ coursator_sortie_client_leak_key }}: Chrome never goes out through bfiven's public address
+set -u
+
+public_ip="{{ coursator_sortie_client_public_ip }}"
+problems=()
+leaks=()
+
+join() { local IFS=';'; echo "$*"; }
+
+# A request marked like Chrome's: same routing table and masquerade, whether Chrome runs or not
+exit_ip() {
+  python3 -I - <<'PY'
+import socket, ssl, sys
+from urllib.parse import urlsplit
+url = urlsplit("{{ coursator_sortie_client_check_url }}")
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sock.setsockopt(socket.SOL_SOCKET, socket.SO_MARK, {{ coursator_sortie_client_mark }})
+sock.settimeout(10)
+try:
+    sock.connect((socket.gethostbyname(url.hostname), 443))
+    tls = ssl.create_default_context().wrap_socket(sock, server_hostname=url.hostname)
+    tls.sendall(f"GET {url.path or '/'} HTTP/1.0\r\nHost: {url.hostname}\r\n\r\n".encode())
+    response = b"".join(iter(lambda: tls.recv(4096), b"")).decode()
+    print(response.split("\r\n\r\n", 1)[1].strip())
+except OSError as error:
+    print(f"error: {error}", file=sys.stderr)
+PY
+}
+
+handshake=$(wg show {{ coursator_sortie_interface }} latest-handshakes 2>/dev/null | cut -f2)
+if [ -z "$handshake" ]; then
+  problems+=("{{ coursator_sortie_interface }} down")
+elif [ "$handshake" -eq 0 ]; then
+  problems+=("no handshake yet")
+elif [ $(( $(date +%s) - handshake )) -gt {{ coursator_sortie_client_max_handshake_age }} ]; then
+  problems+=("last handshake $(( $(date +%s) - handshake ))s ago")
+fi
+
+ip=$(exit_ip 2>&1)
+if [ "$ip" = "$public_ip" ]; then
+  leaks+=("marked request went out through $public_ip")
+elif ! [[ "$ip" =~ ^[0-9.]+$ ]]; then
+  problems+=("no HTTPS through the tunnel: ${ip:-no answer}")
+fi
+
+dropped=$(nft list chain inet claude_sortie garde 2>/dev/null | grep -o 'packets [0-9]*' | tr -dc '0-9')
+if [ -z "$dropped" ]; then
+  leaks+=("nft table claude_sortie missing")
+elif [ "$dropped" -gt 0 ]; then
+  leaks+=("$dropped marked packets dropped on {{ coursator_sortie_client_public_interface }}")
+fi
+
+# Chrome running: its marking rules are there and a request from its own cgroup does not show bfiven's address
+if systemctl is-active --quiet {{ coursator_sortie_client_service }}; then
+  rules=$(nft list chain inet claude_sortie marque 2>/dev/null | grep -c cgroupv2)
+  if [ "$rules" -lt 2 ]; then
+    leaks+=("Chrome runs without its marking rules")
+  fi
+  chrome_ip=$(sh -c 'echo $$ > /sys/fs/cgroup/{{ coursator_sortie_client_cgroup }}/cgroup.procs \
+    && exec setpriv --reuid {{ coursator_sortie_client_agent_user }} --regid {{ coursator_sortie_client_agent_user }} --clear-groups \
+       curl --silent --max-time 10 {{ coursator_sortie_client_check_url }}' 2>/dev/null)
+  if [ "$chrome_ip" = "$public_ip" ]; then
+    leaks+=("Chrome goes out through $public_ip")
+  fi
+fi
+
+if [ -z "${problems[*]:-}" ]; then
+  gatus-push {{ coursator_sortie_client_health_key }} true
+else
+  gatus-push {{ coursator_sortie_client_health_key }} false "$(join "${problems[@]}")"
+fi
+if [ -z "${leaks[*]:-}" ]; then
+  gatus-push {{ coursator_sortie_client_leak_key }} true
+else
+  gatus-push {{ coursator_sortie_client_leak_key }} false "$(join "${leaks[@]}")"
+fi

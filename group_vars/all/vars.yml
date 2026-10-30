@@ -25,3 +25,15 @@ traefik_host_network:
   subnet: "172.30.99.0/29"
   gateway: "172.30.99.1"
 
+# coursator's exit tunnel: bfiven's Chrome goes out to the Internet through an AWS instance with a disposable EIP.
+# The instance opens the tunnel to bfiven's public address (the hypervisor's, forwarded to bfiven); bfiven has no
+# endpoint for it and follows its EIP after each rotation.
+coursator_sortie_interface: "wg-sortie"
+coursator_sortie_client_address: "10.101.0.1"
+coursator_sortie_gateway_address: "10.101.0.2"
+coursator_sortie_prefix: 30
+coursator_sortie_client_public_ip: "188.165.251.28"
+coursator_sortie_client_port: 51821
+coursator_sortie_gateway_port: 51820
+# Below every path's MTU minus WireGuard's overhead
+coursator_sortie_mtu: 1420

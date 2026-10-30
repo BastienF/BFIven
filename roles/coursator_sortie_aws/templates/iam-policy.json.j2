@@ -1,0 +1,48 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "Describe",
+      "Effect": "Allow",
+      "Action": ["ec2:DescribeInstances", "ec2:DescribeAddresses"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "StartStopTaggedInstance",
+      "Effect": "Allow",
+      "Action": ["ec2:StartInstances", "ec2:StopInstances"],
+      "Resource": "{{ arn_prefix }}:instance/*",
+      "Condition": {"StringEquals": {"aws:ResourceTag/projet": "{{ coursator_sortie_aws_tag }}"}}
+    },
+    {
+      "Sid": "AllocateTaggedAddress",
+      "Effect": "Allow",
+      "Action": "ec2:AllocateAddress",
+      "Resource": "{{ arn_prefix }}:elastic-ip/*",
+      "Condition": {"StringEquals": {"aws:RequestTag/projet": "{{ coursator_sortie_aws_tag }}"}}
+    },
+    {
+      "Sid": "TagAddressOnAllocation",
+      "Effect": "Allow",
+      "Action": "ec2:CreateTags",
+      "Resource": "{{ arn_prefix }}:elastic-ip/*",
+      "Condition": {
+        "StringEquals": {
+          "ec2:CreateAction": "AllocateAddress",
+          "aws:RequestTag/projet": "{{ coursator_sortie_aws_tag }}"
+        }
+      }
+    },
+    {
+      "Sid": "MoveAndReleaseTaggedAddresses",
+      "Effect": "Allow",
+      "Action": ["ec2:AssociateAddress", "ec2:DisassociateAddress", "ec2:ReleaseAddress"],
+      "Resource": [
+        "{{ arn_prefix }}:elastic-ip/*",
+        "{{ arn_prefix }}:instance/*",
+        "{{ arn_prefix }}:network-interface/*"
+      ],
+      "Condition": {"StringEquals": {"aws:ResourceTag/projet": "{{ coursator_sortie_aws_tag }}"}}
+    }
+  ]
+}

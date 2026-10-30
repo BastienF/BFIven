@@ -1,0 +1,44 @@
+---
+
+# Only this service's sockets are marked, thus routed through the tunnel; its user is claude_agent's
+coursator_sortie_client_service: "claude-chrome.service"
+coursator_sortie_client_agent_user: "claude"
+coursator_sortie_client_cgroup: "system.slice/{{ coursator_sortie_client_service }}"
+coursator_sortie_client_mark: "0x51"
+# Set by WireGuard on its own encrypted packets. They keep the socket of the Chrome packet they carry: without it,
+# the marking rule would send them into the tunnel again, in a loop.
+coursator_sortie_client_wireguard_mark: "0x52"
+coursator_sortie_client_table_id: 51
+coursator_sortie_client_table_name: "sortie"
+coursator_sortie_client_rule_priority: 1051
+# Stay off the tunnel: loopback (DevTools, local resolver) and the phone's VPN
+coursator_sortie_client_bypass_networks_v4:
+  - 127.0.0.0/8
+  - 10.100.0.0/24
+coursator_sortie_client_bypass_networks_v6:
+  - ::1
+# A marked packet leaving through it is a leak: dropped and counted
+coursator_sortie_client_public_interface: "{{ ansible_default_ipv4.interface }}"
+coursator_sortie_client_conf_location: "/etc/wireguard"
+coursator_sortie_client_nft_file: "/etc/claude-agent/sortie.nft"
+coursator_sortie_client_mark_script: "/usr/local/sbin/claude-sortie-marque"
+# coursator rotates the EIP with these (IAM user coursator-sortie)
+coursator_sortie_client_credentials_file: "/etc/claude-agent/sortie-aws.json"
+coursator_sortie_client_credentials_group: "{{ coursator_sortie_client_agent_user }}"
+# Inventory name of the exit instance (added by the aws play), whose public key this end trusts
+coursator_sortie_client_gateway_host: "coursator-sortie"
+coursator_sortie_client_wireguard_unit: "wg-quick@{{ coursator_sortie_interface }}.service"
+
+# Monitoring: pushed to the Gatus external endpoints bfiven_sortie and bfiven_sortie-fuite (host_vars/bfivenus/gatus.yml)
+# through gatus-push (gatus_push role)
+coursator_sortie_client_health_script: "/usr/local/sbin/push-sortie-health"
+coursator_sortie_client_health_key: "{{ inventory_hostname }}_sortie"
+coursator_sortie_client_leak_key: "{{ inventory_hostname }}_sortie-fuite"
+# WireGuard renews the session every 2 minutes while the instance's keepalives flow
+coursator_sortie_client_max_handshake_age: 300
+coursator_sortie_client_check_url: "https://checkip.amazonaws.com"
+
+# Tunnel state for coursator (handshake epoch, bytes received and sent), rewritten every 30 seconds
+coursator_sortie_client_state_script: "/usr/local/sbin/claude-sortie-etat"
+coursator_sortie_client_state_file: "/run/claude-sortie/etat.json"
+coursator_sortie_client_state_interval: "30s"

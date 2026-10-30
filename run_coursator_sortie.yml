@@ -1,0 +1,33 @@
+---
+
+# Chrome's exit through an AWS instance with a disposable EIP (coursator, Leclerc Drive). Run without -l, with the
+# AWS credentials in the environment and the vault password:
+#   ansible-playbook -i inventories/prod.yml run_coursator_sortie.yml --vault-password-file ~/.ansible/bfiven-vault-pass
+# Creates the instance and its first EIP once; never touches the EIP afterwards (coursator rotates it).
+
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - role: coursator_sortie_aws
+
+- hosts: hypervisor
+  gather_facts: false
+  roles:
+    - role: coursator_sortie_forward
+
+# bfiven's public key first: the instance's config needs it
+- hosts: server
+  tasks:
+    - include_role:
+        name: coursator_sortie_client
+        tasks_from: key.yml
+
+- hosts: coursator_sortie_gateway
+  roles:
+    - role: coursator_sortie_gateway
+    - role: unattended_upgrades
+
+- hosts: server
+  roles:
+    - role: coursator_sortie_client

@@ -1,0 +1,19 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# Writes {{ coursator_sortie_client_state_file }} for coursator: {"handshake": <epoch of the last handshake, 0 if none>,
+# "rx": <bytes received>, "tx": <bytes sent>}. All 0 while {{ coursator_sortie_interface }} is down.
+set -eu
+
+handshake=0 rx=0 tx=0
+if transfer=$(wg show {{ coursator_sortie_interface }} transfer 2> /dev/null) && [ -n "$transfer" ]; then
+  read -r _ rx tx <<< "$transfer"
+  handshake=$(wg show {{ coursator_sortie_interface }} latest-handshakes | cut -f2)
+fi
+
+# Replaced at once: coursator never reads a half-written file
+state={{ coursator_sortie_client_state_file }}
+tmp=$(mktemp "$state.XXXXXX")
+printf '{"handshake": %d, "rx": %d, "tx": %d}\n' "$handshake" "$rx" "$tx" > "$tmp"
+chgrp {{ coursator_sortie_client_agent_user }} "$tmp"
+chmod 0640 "$tmp"
+mv "$tmp" "$state"

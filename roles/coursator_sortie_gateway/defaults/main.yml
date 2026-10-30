@@ -1,0 +1,12 @@
+---
+
+# The bfiven host whose WireGuard public key this gateway trusts (fact set by the client's key play)
+coursator_sortie_gateway_client_host: "bfiven"
+coursator_sortie_gateway_conf_location: "/etc/wireguard"
+# Never forwarded from the tunnel: the VPC, the instance metadata and DNS service, other private ranges
+coursator_sortie_gateway_denied_networks:
+  - 10.0.0.0/8
+  - 172.16.0.0/12
+  - 192.168.0.0/16
+  - 100.64.0.0/10
+  - 169.254.0.0/16

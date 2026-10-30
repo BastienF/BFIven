@@ -1,0 +1,19 @@
+---
+
+- name: restart client wireguard
+  become: true
+  service:
+    name: "wg-quick@{{ coursator_sortie_interface }}"
+    state: restarted
+
+# Reloading the table empties the marking chain: refilled at once if Chrome runs
+- name: reload client exit rules
+  become: true
+  shell: >-
+    nft -f {{ coursator_sortie_client_nft_file }}
+    && { ! systemctl is-active -q {{ coursator_sortie_client_service }} || {{ coursator_sortie_client_mark_script }}; }
+
+- name: reload systemd for chrome
+  become: true
+  systemd:
+    daemon_reload: true

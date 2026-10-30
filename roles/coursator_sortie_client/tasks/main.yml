@@ -1,0 +1,148 @@
+---
+
+- name: check that the gateway's key was read first
+  assert:
+    that:
+      - hostvars[coursator_sortie_client_gateway_host].coursator_sortie_gateway_public_key is defined
+      - hostvars['localhost'].coursator_sortie_aws_credentials is defined
+    fail_msg: "Run run_coursator_sortie.yml as a whole: its aws and gateway plays come first."
+
+- name: read client private key
+  become: true
+  slurp:
+    src: "{{ coursator_sortie_client_conf_location }}/{{ coursator_sortie_interface }}.key"
+  register: coursator_sortie_client_key
+  no_log: true
+
+- set_fact:
+    coursator_sortie_client_private_key: "{{ coursator_sortie_client_key.content | b64decode | trim }}"
+  no_log: true
+
+- name: name exit routing table
+  become: true
+  lineinfile:
+    path: /etc/iproute2/rt_tables
+    regexp: '^\s*{{ coursator_sortie_client_table_id }}\s'
+    line: "{{ coursator_sortie_client_table_id }}\t{{ coursator_sortie_client_table_name }}"
+
+- name: deploy client wireguard config
+  become: true
+  template:
+    src: wg-sortie.conf.j2
+    dest: "{{ coursator_sortie_client_conf_location }}/{{ coursator_sortie_interface }}.conf"
+    mode: "0600"
+  notify: restart client wireguard
+  no_log: true
+
+- name: enable client wireguard
+  become: true
+  service:
+    name: "wg-quick@{{ coursator_sortie_interface }}"
+    state: started
+    enabled: true
+
+- name: create claude agent conf directory
+  become: true
+  file:
+    path: /etc/claude-agent
+    state: directory
+    mode: "0755"
+
+- name: deploy exit rules
+  become: true
+  template:
+    src: sortie.nft.j2
+    dest: "{{ coursator_sortie_client_nft_file }}"
+    mode: "0644"
+    validate: "/usr/sbin/nft -c -f %s"
+  notify: reload client exit rules
+
+- name: deploy exit marking script
+  become: true
+  template:
+    src: claude-sortie-marque.j2
+    dest: "{{ coursator_sortie_client_mark_script }}"
+    mode: "0755"
+  notify: reload client exit rules
+
+- name: create chrome drop-in directory
+  become: true
+  file:
+    path: "/etc/systemd/system/{{ coursator_sortie_client_service }}.d"
+    state: directory
+    mode: "0755"
+
+- name: route chrome through the exit tunnel
+  become: true
+  template:
+    src: sortie.conf.j2
+    dest: "/etc/systemd/system/{{ coursator_sortie_client_service }}.d/sortie.conf"
+    mode: "0644"
+  notify: reload systemd for chrome
+
+- name: deploy coursator aws credentials
+  become: true
+  copy:
+    content: "{{ hostvars['localhost'].coursator_sortie_aws_credentials }}"
+    dest: "{{ coursator_sortie_client_credentials_file }}"
+    owner: root
+    group: "{{ coursator_sortie_client_credentials_group }}"
+    mode: "0640"
+  no_log: true
+
+- name: deploy exit health script
+  become: true
+  template:
+    src: push-sortie-health.j2
+    dest: "{{ coursator_sortie_client_health_script }}"
+    mode: "0755"
+
+# Needs the push tokens deployed by run_gatus.yml (gatus_push role)
+- name: push exit health every 5 minutes
+  become: true
+  cron:
+    name: push exit tunnel health
+    minute: "*/5"
+    user: root
+    job: "{{ coursator_sortie_client_health_script }} > /dev/null 2>&1"
+    cron_file: gatus-push-sortie
+
+# Recreated at boot (/run is a tmpfs); only root writes, the agent user reads
+- name: create exit state directory at boot
+  become: true
+  copy:
+    content: "d {{ coursator_sortie_client_state_file | dirname }} 0750 root {{ coursator_sortie_client_agent_user }} -\n"
+    dest: /etc/tmpfiles.d/claude-sortie.conf
+    mode: "0644"
+  register: coursator_sortie_client_state_tmpfiles
+
+- name: create exit state directory
+  become: true
+  command: "systemd-tmpfiles --create /etc/tmpfiles.d/claude-sortie.conf"
+  when: coursator_sortie_client_state_tmpfiles is changed
+
+- name: deploy exit state script
+  become: true
+  template:
+    src: claude-sortie-etat.j2
+    dest: "{{ coursator_sortie_client_state_script }}"
+    mode: "0755"
+
+- name: deploy exit state units
+  become: true
+  template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    mode: "0644"
+  with_items:
+    - claude-sortie-etat.service
+    - claude-sortie-etat.timer
+  register: coursator_sortie_client_state_units
+
+- name: enable exit state timer
+  become: true
+  systemd:
+    name: claude-sortie-etat.timer
+    state: "{{ 'restarted' if coursator_sortie_client_state_units is changed else 'started' }}"
+    enabled: true
+    daemon_reload: "{{ coursator_sortie_client_state_units is changed }}"

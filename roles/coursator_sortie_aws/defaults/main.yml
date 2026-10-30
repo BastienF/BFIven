@@ -1,0 +1,21 @@
+---
+
+coursator_sortie_aws_region: "eu-west-3"
+# Every resource is found through this tag, never through an ID: coursator replaces the EIP itself
+coursator_sortie_aws_tag: "coursator-sortie"
+coursator_sortie_aws_name: "coursator-sortie"
+coursator_sortie_aws_instance_type: "t4g.nano"
+coursator_sortie_aws_volume_size: 8
+# Debian's official account; the latest Debian 12 arm64 image when the instance is created (never replaced after)
+coursator_sortie_aws_ami_owner: "136693071363"
+coursator_sortie_aws_ami_name: "debian-12-arm64-*"
+coursator_sortie_aws_ssh_user: "admin"
+coursator_sortie_aws_ssh_public_key: "{{ lookup('file', '~/.ssh/id_ed25519.pub') }}"
+# The only address allowed to SSH in: the hypervisor's public address, bfiven's way out (Ansible jumps through it)
+coursator_sortie_aws_ssh_allowed_ip: "{{ coursator_sortie_client_public_ip }}"
+coursator_sortie_aws_ssh_jump_host: "cooltown"
+
+coursator_sortie_aws_iam_user: "coursator-sortie"
+# Encrypted with Ansible Vault: the IAM secret is only readable once, when AWS creates it
+coursator_sortie_aws_vault_file: "{{ playbook_dir }}/vault/coursator_sortie.yml"
+coursator_sortie_aws_vault_password_file: "~/.ansible/bfiven-vault-pass"

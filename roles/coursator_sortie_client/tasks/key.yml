@@ -1,0 +1,32 @@
+---
+
+# Run before the gateway play, which needs this end's public key. Generated once on bfiven, never leaves it.
+
+- name: install wireguard
+  become: true
+  apt:
+    name: wireguard-tools
+    state: present
+
+- name: create wireguard directory
+  become: true
+  file:
+    path: "{{ coursator_sortie_client_conf_location }}"
+    state: directory
+    mode: "0700"
+
+- name: generate client key pair
+  become: true
+  shell: "umask 077 && wg genkey | tee {{ coursator_sortie_interface }}.key | wg pubkey > {{ coursator_sortie_interface }}.pub"
+  args:
+    chdir: "{{ coursator_sortie_client_conf_location }}"
+    creates: "{{ coursator_sortie_interface }}.key"
+
+- name: read client public key
+  become: true
+  slurp:
+    src: "{{ coursator_sortie_client_conf_location }}/{{ coursator_sortie_interface }}.pub"
+  register: coursator_sortie_client_pub
+
+- set_fact:
+    coursator_sortie_client_public_key: "{{ coursator_sortie_client_pub.content | b64decode | trim }}"

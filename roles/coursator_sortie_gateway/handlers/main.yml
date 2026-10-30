@@ -1,0 +1,13 @@
+---
+
+- name: restart gateway wireguard
+  become: true
+  service:
+    name: "wg-quick@{{ coursator_sortie_interface }}"
+    state: restarted
+
+- name: reload gateway nftables
+  become: true
+  service:
+    name: nftables
+    state: reloaded
