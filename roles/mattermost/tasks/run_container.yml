@@ -11,8 +11,8 @@
 - name: Start or restart mattermost db container
   become: true
   docker_container:
-    name: "{{ mattermost_db_container_name }}"
-    image: "postgres:{{ mattermost_postgres_image_tag }}"
+    name: "mattermost_db_18.6-alpine3.24"
+    image: "postgres:18.6-alpine3.24"
     security_opts:
       - "no-new-privileges:true"
     pids_limit: 100
@@ -25,7 +25,7 @@
       - "/tmp"
       - "/var/run/postgresql"
     volumes:
-      - "{{ mattermost_postgres_data_location }}:/var/lib/postgresql/data"
+      - "/data/containers/mattermost/data/db_18.6-alpine3.24:/var/lib/postgresql"
     env:
       TZ: "{{ mattermost_env_timezone }}"
       POSTGRES_USER: mmuser
@@ -36,7 +36,7 @@
   become: true
   docker_container:
     name: "{{ mattermost_app_container_name }}"
-    image: mattermost/mattermost-team-edition:10.5
+    image: mattermost/mattermost-team-edition:11.7.11
     security_opts:
       - "no-new-privileges:true"
     pids_limit: 200
@@ -55,7 +55,7 @@
     env:
       TZ: "{{ mattermost_env_timezone }}"
       MM_SQLSETTINGS_DRIVERNAME: postgres
-      MM_SQLSETTINGS_DATASOURCE: "postgres://mmuser:{{ secrets_json.PostgresPassword|urlencode() }}@{{ mattermost_db_container_name }}:5432/mattermost?sslmode=disable&connect_timeout=10"
+      MM_SQLSETTINGS_DATASOURCE: "postgres://mmuser:{{ secrets_json.PostgresPassword|urlencode() }}@mattermost_db_18.6-alpine3.24:5432/mattermost?sslmode=disable&connect_timeout=10"
       MM_BLEVESETTINGS_INDEXDIR: "/mattermost/bleve-indexes"
       MM_SERVICESETTINGS_SITEURL: "https://{{ mattermost_domain }}"
     labels: "{{ mattermost_traefik_labels | items2dict }}"
