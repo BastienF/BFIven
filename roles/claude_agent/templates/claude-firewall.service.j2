@@ -1,0 +1,14 @@
+# {{ ansible_managed }}
+
+[Unit]
+Description=Claude agent: firewall rules keeping VNC, noVNC and Chrome's DevTools port private
+Before=claude-x11vnc.service claude-novnc.service claude-chrome.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=/usr/sbin/nft -f /etc/claude-agent/claude-agent.nft
+ExecStop=/usr/sbin/nft delete table inet claude_agent
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,115 @@
+---
+
+- name: deploy the web front ends
+  when: claude_agent_web_services | length > 0
+  block:
+    # Generated once on the host, never stored by Ansible: sudo cat <file> to hand them over
+    - name: create the web users file
+      become: true
+      copy:
+        force: false
+        content: "{}"
+        dest: "{{ claude_agent_web_users_file_location }}"
+        mode: "0600"
+
+    - name: slurp the web users file
+      become: true
+      slurp:
+        src: "{{ claude_agent_web_users_file_location }}"
+      register: claude_agent_web_users_slurped
+      no_log: true
+
+    - set_fact:
+        claude_agent_web_credentials: "{{ claude_agent_web_users_slurped['content'] | b64decode | from_json }}"
+      no_log: true
+
+    # Bcrypt, accepted by Traefik's basic auth
+    - name: generate the missing web passwords
+      become: true
+      command: >-
+        python3 -W ignore -c "import crypt, json, secrets; p = secrets.token_urlsafe(24);
+        print(json.dumps({'password': p, 'hash': crypt.crypt(p, crypt.mksalt(crypt.METHOD_BLOWFISH))}))"
+      with_items: "{{ claude_agent_web_users | reject('in', claude_agent_web_credentials) | list }}"
+      register: claude_agent_web_new_credentials
+      no_log: true
+
+    - set_fact:
+        claude_agent_web_credentials: "{{ claude_agent_web_credentials | combine({item.item: item.stdout | from_json}) }}"
+      with_items: "{{ claude_agent_web_new_credentials.results }}"
+      no_log: true
+
+    - name: dump the web users file
+      become: true
+      copy:
+        content: "{{ claude_agent_web_credentials | to_nice_json }}\n"
+        dest: "{{ claude_agent_web_users_file_location }}"
+        mode: "0600"
+      no_log: true
+
+    - name: deploy the web front end units
+      become: true
+      template:
+        src: "{{ item.1.src }}"
+        dest: "/etc/systemd/system/{{ item.0.name }}{{ item.1.suffix }}"
+        mode: "0644"
+      vars:
+        web_service: "{{ item.0 }}"
+      with_nested:
+        - "{{ claude_agent_web_services }}"
+        - - { src: "claude-web.service.j2", suffix: ".service" }
+          - { src: "claude-web-proxy.socket.j2", suffix: "-proxy.socket" }
+          - { src: "claude-web-proxy.service.j2", suffix: "-proxy.service" }
+          - { src: "claude-web-restart.path.j2", suffix: "-restart.path" }
+          - { src: "claude-web-restart.service.j2", suffix: "-restart.service" }
+      loop_control:
+        label: "{{ item.0.name }}{{ item.1.suffix }}"
+      register: claude_agent_web_units
+
+    - name: reload systemd
+      become: true
+      systemd:
+        daemon_reload: true
+      when: claude_agent_web_units is changed
+
+    - name: restart changed web front end units
+      become: true
+      command: "systemctl try-restart {{ claude_agent_web_units.results | selectattr('changed') | map(attribute='dest') | map('basename') | join(' ') }}"
+      # No `dest` in the template results of a --check run
+      when: claude_agent_web_units is changed and not ansible_check_mode
+
+    - name: enable the web front ends
+      become: true
+      systemd:
+        name: "{{ item.0.name }}{{ item.1 }}"
+        state: started
+        enabled: true
+      with_nested:
+        - "{{ claude_agent_web_services }}"
+        - [".service", "-proxy.socket", "-restart.path"]
+
+    # The agent user restarts its web front ends with `claude-web <service> restart`, without sudo (which the
+    # confinement's NoNewPrivileges forbids anyway): see claude-web-restart.path.j2
+    - name: create web restart requests directory
+      become: true
+      file:
+        path: "{{ claude_agent_web_restart_requests_location }}"
+        state: directory
+        owner: "{{ claude_agent_user }}"
+        group: "{{ claude_agent_user }}"
+        mode: "0700"
+
+    - name: deploy claude-web script
+      become: true
+      template:
+        src: claude-web.j2
+        dest: /usr/local/bin/claude-web
+        mode: "0755"
+
+    # Picked up by Traefik's file provider without a restart
+    - name: publish the web front ends through traefik
+      become: true
+      template:
+        src: traefik-web.yml.j2
+        dest: "{{ traefik_dynamic_conf_location }}/claude-agent-web.yml"
+        mode: "0600"
+      no_log: true

@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+
+[Unit]
+Description=Claude agent: restarts the web front end of {{ web_service.project }} when claude-web requests it
+
+[Path]
+# Written to by `claude-web restart {{ web_service.name }}`; never deleted by root, in a directory the agent user owns
+PathModified={{ claude_agent_web_restart_requests_location }}/{{ web_service.name }}
+Unit={{ web_service.name }}-restart.service
+
+[Install]
+WantedBy=multi-user.target

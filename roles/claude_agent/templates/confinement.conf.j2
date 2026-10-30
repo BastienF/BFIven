@@ -1,0 +1,21 @@
+# Confinement: Claude Code runs commands chosen by a model, which pages it reads could try to steer.
+# It keeps its home and the Internet, never the rest of the host.
+NoNewPrivileges=true
+RestrictSUIDSGID=true
+ProtectSystem=strict
+# Shared by Chrome and Claude Code: X display, tmux and native messaging sockets
+ReadWritePaths=/tmp /var/tmp
+ProtectHome=tmpfs
+BindPaths={{ claude_agent_home }}
+InaccessiblePaths={% for path in claude_agent_confinement_hidden_paths %}-{{ path }} {% endfor %}
+
+# Other users' processes are invisible: their command lines may carry secrets (disk passphrase, tokens)
+ProtectProc=invisible
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+LockPersonality=true
+# No container, LAN or VPN address; the local resolver stays reachable
+IPAddressAllow=localhost
+IPAddressDeny={{ claude_agent_confinement_denied_networks | join(' ') }}

@@ -1,0 +1,9 @@
+# {{ ansible_managed }}
+# Started by {{ web_service.name }}-restart.path only: the agent user can restart this one unit, nothing else
+
+[Unit]
+Description=Claude agent: restart of the web front end of {{ web_service.project }}
+
+[Service]
+Type=oneshot
+ExecStart=/bin/systemctl restart {{ web_service.name }}.service

@@ -1,0 +1,43 @@
+# {{ ansible_managed }}
+# Started on request only, by claude-chrome.path: see claude-browser
+
+[Unit]
+Description=Claude agent: Google Chrome on the virtual display
+{% if claude_agent_chrome_debugging_port | string | length > 0 %}
+# Its rules keep the DevTools port to the agent user
+Requires=claude-xvfb.service claude-firewall.service
+Wants=claude-openbox.service network-online.target
+After=claude-xvfb.service claude-openbox.service network-online.target claude-firewall.service
+{% else %}
+Requires=claude-xvfb.service
+Wants=claude-openbox.service network-online.target
+After=claude-xvfb.service claude-openbox.service network-online.target
+{% endif %}
+PartOf=claude-xvfb.service
+StartLimitIntervalSec=0
+
+[Service]
+User={{ claude_agent_user }}
+Group={{ claude_agent_user }}
+WorkingDirectory={{ claude_agent_home }}
+Environment=DISPLAY={{ claude_agent_display }} LANG={{ claude_agent_locale }} LANGUAGE={{ claude_agent_locale.split('.')[0] }} TZ={{ claude_agent_timezone }}
+# A normal browser: sandbox on, no headless. Its profile is outside Chrome's default directory, where Chrome would
+# ignore the remote debugging port (loopback only, see claude_agent_chrome_debugging_port).
+# Only the cookies' key store is pinned: without a desktop keyring, Chrome could switch store between two starts
+# and lose the sites' sessions.
+ExecStart=/usr/bin/google-chrome-stable --user-data-dir={{ claude_agent_chrome_profile_location }} --password-store=basic --start-maximized{{ (' --remote-debugging-port=' ~ claude_agent_chrome_debugging_port) if claude_agent_chrome_debugging_port | string | length > 0 else '' }}{{ claude_agent_chrome_extra_args | map('regex_replace', '^', ' ') | join }}
+# Withdraws the request, so that the path unit does not start Chrome again: when it was closed or stopped,
+# or ran for too long. Kept after a crash, restarted below.
+ExecStopPost=/bin/sh -c 'case "$SERVICE_RESULT" in signal|core-dump) ;; *) rm -f {{ claude_agent_chrome_request_file }} ;; esac'
+Restart=on-abort
+RestartSec=5
+RuntimeMaxSec={{ claude_agent_chrome_max_runtime }}
+# SIGTERM to the browser process only, which shuts its children down itself (see claude-browser stop); what is
+# left once it has exited gets SIGKILL
+KillMode=mixed
+TimeoutStopSec=20
+# Chrome also starts Claude Code's native messaging host: both live in this memory budget
+MemoryMax={{ claude_agent_chrome_memory_max }}
+OOMScoreAdjust={{ claude_agent_oom_score_adjust }}
+
+{% include 'confinement.conf.j2' %}

@@ -1,0 +1,111 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# Runs `claude remote-control` for a project in its own window (named after the project) of the
+# '{{ claude_agent_tmux_session }}' tmux session.
+# Usage: claude-remote-control <project> [start|restart|stop|status]
+set -euo pipefail
+
+if [ "$(id -un)" != "{{ claude_agent_user }}" ]; then
+  exec sudo -u {{ claude_agent_user }} -H "$0" "$@"
+fi
+
+if [ $# -lt 1 ]; then
+  echo "Usage: $0 <project> [start|restart|stop|status]" >&2
+  echo "Projects: $(ls {{ claude_agent_projects_location }})" >&2
+  exit 2
+fi
+
+# This script runs outside the confinement when an admin calls it: its own commands never come from
+# ~/.local/bin, which the confined agent can write to
+export PATH="/usr/local/bin:/usr/bin:/bin"
+# The pane runs in the confined tmux server; tmux gives it the PATH of the client opening it, which would miss
+# claude and python: set it for the pane only
+pane_path="{{ claude_agent_home }}/.local/bin:/usr/local/bin:/usr/bin:/bin"
+
+project="$1"
+project_dir="{{ claude_agent_projects_location }}/$project"
+session="{{ claude_agent_tmux_session }}"
+target="$session:$project"
+# --chrome: without it, Remote Control sessions start without the browser tools, whatever /chrome says
+command="/usr/bin/env PATH=$pane_path claude remote-control --chrome --name ${project^}"
+
+if [ ! -d "$project_dir" ]; then
+  echo "No project $project_dir" >&2
+  exit 2
+fi
+
+require_session() {
+  if ! tmux has-session -t "$session" 2> /dev/null; then
+    echo "No tmux session '$session': sudo systemctl start claude-tmux" >&2
+    exit 1
+  fi
+}
+
+window_exists() {
+  tmux list-windows -t "$session" -F '#W' 2> /dev/null | grep -qxF "$project"
+}
+
+is_running() {
+  window_exists && [ "$(tmux display-message -p -t "$target" '#{pane_dead}')" = "0" ]
+}
+
+# Ctrl-C, then waits for the exit: killed at once, Remote Control stays registered on claude.ai, and the next one,
+# started while the old one is still alive, is refused ("already served ... on this device")
+stop_gracefully() {
+  if is_running; then
+    tmux send-keys -t "$target" C-c
+    for _ in $(seq 20); do
+      is_running || return 0
+      sleep 0.5
+    done
+    echo "Remote Control did not stop within 10 s: killed" >&2
+  fi
+}
+
+# The window stays open when the command exits, to read why
+launch() {
+  if ! window_exists; then
+    tmux new-window -d -t "$session" -n "$project" -c "$project_dir"
+    tmux set-option -w -t "$target" remain-on-exit on
+  else
+    # A new window only holds a shell, which Ctrl-C does not stop
+    stop_gracefully
+  fi
+  tmux respawn-window -k -t "$target" -c "$project_dir" "$command"
+}
+
+case "${2:-start}" in
+  start)
+    require_session
+    if is_running; then
+      echo "Remote Control already running: tmux attach -t $target"
+    else
+      launch
+      echo "Remote Control started: tmux attach -t $target"
+    fi
+    ;;
+  restart)
+    require_session
+    launch
+    echo "Remote Control restarted: tmux attach -t $target"
+    ;;
+  stop)
+    if window_exists; then
+      stop_gracefully
+      tmux kill-window -t "$target"
+    fi
+    echo "Remote Control stopped"
+    ;;
+  status)
+    if is_running; then
+      echo "running"
+    else
+      echo "stopped"
+      exit 1
+    fi
+    ;;
+  *)
+    echo "Usage: $0 <project> [start|restart|stop|status]" >&2
+    exit 2
+    ;;
+esac

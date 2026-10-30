@@ -1,0 +1,22 @@
+# {{ ansible_managed }}
+
+[Unit]
+Description=Claude agent: window manager
+Requires=claude-xvfb.service
+After=claude-xvfb.service
+PartOf=claude-xvfb.service
+StartLimitIntervalSec=0
+
+[Service]
+User={{ claude_agent_user }}
+Group={{ claude_agent_user }}
+Environment=DISPLAY={{ claude_agent_display }} LANG={{ claude_agent_locale }} TZ={{ claude_agent_timezone }}
+ExecStart=/usr/bin/openbox
+Restart=always
+RestartSec=5
+
+# Like Chrome and Claude Code: their configuration lives in the home the agent writes to
+{% include 'confinement.conf.j2' %}
+
+[Install]
+WantedBy=multi-user.target

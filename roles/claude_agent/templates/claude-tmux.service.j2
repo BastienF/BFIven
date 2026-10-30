@@ -1,0 +1,33 @@
+# {{ ansible_managed }}
+
+[Unit]
+Description=Claude agent: tmux session '{{ claude_agent_tmux_session }}' for Claude Code
+Wants=claude-xvfb.service network-online.target
+After=claude-xvfb.service network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=forking
+User={{ claude_agent_user }}
+Group={{ claude_agent_user }}
+WorkingDirectory={{ claude_agent_projects_location }}
+# Inherited by every window; the shells are login shells, which also read ~/.profile
+Environment=PATH={{ claude_agent_home }}/.local/bin:/usr/local/bin:/usr/bin:/bin DISPLAY={{ claude_agent_display }} LANG={{ claude_agent_locale }} TZ={{ claude_agent_timezone }} PLAYWRIGHT_BROWSERS_PATH={{ claude_agent_playwright_browsers_location }}
+ExecStart=/usr/bin/tmux new-session -d -s {{ claude_agent_tmux_session }} -c {{ claude_agent_projects_location }}
+{% if claude_agent_remote_control_autostart %}
+# "-": a failed start (e.g. logged out of claude.ai) leaves the session up for a manual fix
+{% for project in claude_agent_remote_control_autostart %}
+ExecStartPost=-/usr/local/bin/claude-remote-control {{ project }} start
+{% endfor %}
+{% endif %}
+ExecStop=/usr/bin/tmux kill-server
+# Also when the last shell of the session exits
+Restart=always
+RestartSec=5
+MemoryMax={{ claude_agent_tmux_memory_max }}
+OOMScoreAdjust={{ claude_agent_oom_score_adjust }}
+
+{% include 'confinement.conf.j2' %}
+
+[Install]
+WantedBy=multi-user.target

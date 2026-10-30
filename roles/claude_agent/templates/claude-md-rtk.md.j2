@@ -1,0 +1,7 @@
+## RTK
+
+A hook rewrites shell commands to their `rtk` form (`git status` runs as `rtk git status`) to compact their output;
+nothing to do for it. When a filtered output hides what you need, run the command as `rtk proxy <command>` (raw
+output). On failure, RTK may print `[full output: <path>]`: read or grep that file instead of running the command
+again. `rtk gain` shows the savings. Never run `rtk init` nor add an RTK hook to the settings: the hook is already set
+in the managed settings.

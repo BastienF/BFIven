@@ -1,0 +1,21 @@
+# {{ ansible_managed }}
+
+[Unit]
+Description=Claude agent: VNC server of the virtual display (loopback only)
+Requires=claude-xvfb.service claude-firewall.service
+After=claude-xvfb.service claude-firewall.service
+PartOf=claude-xvfb.service
+StartLimitIntervalSec=0
+
+[Service]
+User={{ claude_agent_user }}
+Group={{ claude_agent_user }}
+ExecStart=/usr/bin/x11vnc -norc -display {{ claude_agent_display }} -auth {{ claude_agent_xauthority_location }} -rfbauth {{ claude_agent_vnc_conf_location }}/passwd -localhost -rfbport {{ claude_agent_vnc_port }} -forever -shared -noxdamage
+Restart=always
+RestartSec=5
+
+# Like Chrome and Claude Code: their configuration lives in the home the agent writes to
+{% include 'confinement.conf.j2' %}
+
+[Install]
+WantedBy=multi-user.target

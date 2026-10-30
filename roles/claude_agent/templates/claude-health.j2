@@ -1,0 +1,80 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# Checks every component of the Claude agent. Exit code: number of failed checks.
+set -uo pipefail
+
+if [ "$(id -un)" != "{{ claude_agent_user }}" ]; then
+  exec sudo -u {{ claude_agent_user }} -H "$0" "$@"
+fi
+
+# Runs outside the confinement when an admin calls it: nothing from the agent's home is executed, and commands
+# only come from the system (the agent can write to ~/.local/bin)
+export PATH="/usr/local/bin:/usr/bin:/bin"
+export DISPLAY="{{ claude_agent_display }}" XAUTHORITY="{{ claude_agent_xauthority_location }}"
+failures=0
+
+report() {
+  local status=$1 label=$2 detail=${3:-}
+  if [ "$status" = 0 ]; then
+    printf 'OK    %-22s %s\n' "$label" "$detail"
+  else
+    printf 'FAIL  %-22s %s\n' "$label" "$detail"
+    failures=$((failures + 1))
+  fi
+}
+
+service_state() {
+  systemctl is-active "$1" 2> /dev/null
+}
+
+resolution=$(xdpyinfo 2> /dev/null | awk '/dimensions:/ {print $2}')
+report $? "Virtual display" "{{ claude_agent_display }} ${resolution:-unreachable} (claude-xvfb: $(service_state claude-xvfb))"
+
+[ "$(service_state claude-openbox)" = active ]
+report $? "Window manager" "claude-openbox: $(service_state claude-openbox)"
+
+# Chrome only runs on request: the path unit that starts it must be active
+[ "$(service_state claude-chrome.path)" = active ]
+report $? "Chrome on request" "claude-chrome.path: $(service_state claude-chrome.path), Chrome: $(service_state claude-chrome)"
+
+[ "$(service_state claude-x11vnc)" = active ]
+report $? "VNC" "127.0.0.1:{{ claude_agent_vnc_port }} (claude-x11vnc: $(service_state claude-x11vnc))"
+
+novnc_url="http://{{ claude_agent_novnc_listen_address }}:{{ claude_agent_novnc_port }}/"
+curl -fsS -o /dev/null --max-time 5 "$novnc_url" 2> /dev/null
+report $? "noVNC" "$novnc_url (claude-novnc: $(service_state claude-novnc))"
+
+[ "$(service_state claude-firewall)" = active ]
+report $? "Firewall" "claude-firewall: $(service_state claude-firewall)"
+
+tmux has-session -t "{{ claude_agent_tmux_session }}" 2> /dev/null
+report $? "tmux session" "{{ claude_agent_tmux_session }}"
+
+# The version from the link's target (~/.local/share/claude/versions/<version>): running the binary would execute
+# a file the agent can replace, outside its confinement
+claude_binary=$(readlink -e "{{ claude_agent_home }}/.local/bin/claude")
+report $? "Claude Code" "$(basename "${claude_binary:-not installed}")"
+
+# Informative only: depends on the manual steps
+for project_dir in {{ claude_agent_projects_location }}/*/; do
+  project=$(basename "$project_dir")
+  printf 'INFO  %-22s %s\n' "Remote Control" "$project: $(/usr/local/bin/claude-remote-control "$project" status 2> /dev/null)"
+done
+if [ -f "{{ claude_agent_chrome_profile_location }}/NativeMessagingHosts/com.anthropic.claude_code_browser_extension.json" ]; then
+  echo "INFO  Chrome native host     installed"
+else
+  echo "INFO  Chrome native host     missing: run /chrome in Claude Code"
+fi
+{% if claude_agent_chrome_debugging_port | string | length > 0 %}
+if [ "$(service_state claude-chrome)" = active ]; then
+  devtools=$(curl -fsS --max-time 5 http://127.0.0.1:{{ claude_agent_chrome_debugging_port }}/json/version 2> /dev/null | grep -o '"Browser": *"[^"]*"')
+  printf 'INFO  %-22s %s\n' "Chrome DevTools" "127.0.0.1:{{ claude_agent_chrome_debugging_port }} ${devtools:-unreachable}"
+fi
+{% endif %}
+{% for web_service in claude_agent_web_services %}
+
+curl -fsS -o /dev/null --max-time 5 http://127.0.0.1:{{ web_service.port }}/ 2> /dev/null
+report $? "{{ web_service.name }}" "https://{{ web_service.domain }}/ ({{ web_service.name }}: $(service_state {{ web_service.name }}), proxy socket: $(service_state {{ web_service.name }}-proxy.socket))"
+{% endfor %}
+
+exit "$failures"

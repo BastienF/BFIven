@@ -1,0 +1,70 @@
+---
+
+- name: check chrome profile
+  become: true
+  stat:
+    path: "{{ claude_agent_chrome_profile_location }}"
+  register: claude_agent_chrome_profile
+
+- name: check chrome default profile
+  become: true
+  stat:
+    path: "{{ claude_agent_chrome_default_profile_location }}"
+  register: claude_agent_chrome_default_profile
+
+# Once only, Chrome stopped. With --password-store=basic, the cookies' key does not depend on the directory:
+# the sites' sessions survive the copy.
+- name: move the chrome profile out of chrome's default directory
+  when:
+    - not claude_agent_chrome_profile.stat.exists
+    - claude_agent_chrome_default_profile.stat.exists
+  block:
+    - name: withdraw chrome requests before moving its profile
+      become: true
+      file:
+        path: "{{ claude_agent_chrome_request_file }}"
+        state: absent
+
+    - name: stop chrome before moving its profile
+      become: true
+      systemd:
+        name: claude-chrome.service
+        state: stopped
+      failed_when: false
+
+    - name: copy the chrome profile
+      become: true
+      command: "cp -a {{ claude_agent_chrome_default_profile_location }} {{ claude_agent_chrome_profile_location }}"
+      args:
+        creates: "{{ claude_agent_chrome_profile_location }}"
+
+    # Replaced by a link below
+    - name: remove the copied native messaging hosts
+      become: true
+      file:
+        path: "{{ claude_agent_chrome_profile_location }}/NativeMessagingHosts"
+        state: absent
+
+- name: create chrome profile directory
+  become: true
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ claude_agent_user }}"
+    group: "{{ claude_agent_user }}"
+    mode: "0700"
+  with_items:
+    - "{{ claude_agent_chrome_profile_location }}"
+    - "{{ claude_agent_chrome_default_profile_location }}/NativeMessagingHosts"
+
+# Claude Code writes the extension's native host manifest in Chrome's default directory (`/chrome`, updates);
+# Chrome reads it from <profile>/NativeMessagingHosts
+- name: share the native messaging hosts with chrome's default directory
+  become: true
+  file:
+    src: "{{ claude_agent_chrome_default_profile_location }}/NativeMessagingHosts"
+    dest: "{{ claude_agent_chrome_profile_location }}/NativeMessagingHosts"
+    state: link
+    owner: "{{ claude_agent_user }}"
+    group: "{{ claude_agent_user }}"
+  when: claude_agent_chrome_profile_location != claude_agent_chrome_default_profile_location

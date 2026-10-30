@@ -1,0 +1,22 @@
+# {{ ansible_managed }}
+
+[Unit]
+Description=Claude agent: relays Traefik to the web front end of {{ web_service.project }}
+Requires={{ web_service.name }}.service
+After={{ web_service.name }}.service
+
+[Service]
+ExecStart=/lib/systemd/systemd-socket-proxyd 127.0.0.1:{{ web_service.port }}
+DynamicUser=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+LockPersonality=true
+IPAddressDeny=any
+IPAddressAllow=localhost {{ traefik_host_network.subnet }}

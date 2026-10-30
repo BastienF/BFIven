@@ -1,0 +1,59 @@
+---
+
+# Root-owned, like noVNC: the agent runs it, neither it nor a page it reads can alter it
+- name: install playwright
+  become: true
+  pip:
+    name: "playwright=={{ claude_agent_playwright_version }}"
+    virtualenv: "{{ claude_agent_playwright_location }}/venv"
+    virtualenv_command: "/usr/bin/python{{ claude_agent_python_version }} -m venv"
+
+# --with-deps: also the system libraries they need, through apt. Once per version and set of browsers; Playwright
+# removes the browsers an older version left.
+- name: install playwright browsers
+  become: true
+  shell: >-
+    {{ claude_agent_playwright_location }}/venv/bin/playwright install --with-deps
+    {{ claude_agent_playwright_browsers | join(' ') }}
+    && touch {{ claude_agent_playwright_browsers_marker }}
+  args:
+    creates: "{{ claude_agent_playwright_browsers_marker }}"
+  environment:
+    PLAYWRIGHT_BROWSERS_PATH: "{{ claude_agent_playwright_browsers_location }}"
+  vars:
+    claude_agent_playwright_browsers_marker: >-
+      {{ claude_agent_playwright_browsers_location }}/.installed-{{ claude_agent_playwright_version }}-{{ claude_agent_playwright_browsers | join('-') }}
+
+# The user site-packages of the agent's `python`: `import playwright` works without a virtualenv, and
+# `pip install --user` or a project's own virtualenv stay possible
+- name: create claude agent user site-packages
+  become: true
+  file:
+    path: "{{ claude_agent_home }}/{{ item }}"
+    state: directory
+    owner: "{{ claude_agent_user }}"
+    group: "{{ claude_agent_user }}"
+    mode: "0755"
+  with_items:
+    - .local/lib
+    - .local/lib/python{{ claude_agent_python_version }}
+    - .local/lib/python{{ claude_agent_python_version }}/site-packages
+
+- name: add playwright to the agent's python
+  become: true
+  copy:
+    content: "{{ claude_agent_playwright_location }}/venv/lib/python{{ claude_agent_python_version }}/site-packages\n"
+    dest: "{{ claude_agent_home }}/.local/lib/python{{ claude_agent_python_version }}/site-packages/playwright.pth"
+    owner: "{{ claude_agent_user }}"
+    group: "{{ claude_agent_user }}"
+    mode: "0644"
+
+- name: add the playwright command for the agent user
+  become: true
+  file:
+    src: "{{ claude_agent_playwright_location }}/venv/bin/playwright"
+    dest: "{{ claude_agent_home }}/.local/bin/playwright"
+    state: link
+    owner: "{{ claude_agent_user }}"
+    group: "{{ claude_agent_user }}"
+    follow: false

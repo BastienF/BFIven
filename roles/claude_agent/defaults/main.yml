@@ -1,0 +1,181 @@
+---
+
+# Claude Code and Chrome run as the same unprivileged user: the Chrome extension reaches Claude Code through
+# native messaging, which only works within one user
+claude_agent_user: "claude"
+claude_agent_home: "/home/{{ claude_agent_user }}"
+
+# One directory per project, each with its own Remote Control server (tmux window named after the project)
+claude_agent_projects_location: "{{ claude_agent_home }}/projects"
+# Each one: {name, private_dirs (optional, made 0700: personal data)}
+claude_agent_projects: []
+# Local copies of the projects, copied once when the server has none:
+# -e '{"claude_agent_project_sources": {"<name>": "/path/to/project/"}}'.
+# Afterwards the server's copy is the reference: it is never overwritten.
+claude_agent_project_sources: {}
+
+# Per-user only: the host keeps its own locale and its UTC clock (cron jobs rely on it)
+claude_agent_locale: "fr_FR.UTF-8"
+claude_agent_timezone: "Europe/Paris"
+
+# Ubuntu 22.04 ships 3.10: newer versions come from the deadsnakes PPA. `python` and `python3` point to it
+# in the user's PATH only.
+claude_agent_python_version: "3.12"
+
+# Playwright for Python: `import playwright` with the agent's `python`, `playwright` on its PATH. Root-owned, browsers
+# included: the agent uses them, never alters them (`playwright install` fails for it, add the browser here).
+# Its Chromium starts with a blank profile: unlike Claude in Chrome, Playwright goes through no claude-guard check.
+claude_agent_playwright_version: "1.64.1"
+claude_agent_playwright_location: "/opt/playwright"
+claude_agent_playwright_browsers_location: "{{ claude_agent_playwright_location }}/browsers"
+claude_agent_playwright_browsers: ["chromium"]
+
+# RTK: a PreToolUse hook of the managed settings rewrites Claude Code's shell commands (`git status` becomes
+# `rtk git status`) to compact their output before it reaches the context. Root-owned, like Playwright.
+# Upgrade: version and checksum (sha256 of rtk-x86_64-unknown-linux-musl.tar.gz, listed on the GitHub release).
+claude_agent_rtk_version: "1.1.0"
+claude_agent_rtk_checksum: "sha256:9454ad1b9489daa57ab0a9f4ebe2faaf4dc82b8a0f26c9e5135151abd7c9378d"
+claude_agent_rtk_install_location: "/opt/rtk"
+claude_agent_rtk_binary: "/usr/local/bin/rtk"
+
+claude_agent_packages:
+  - git
+  - tmux
+  - curl
+  - xvfb
+  - xauth
+  - x11-utils
+  - openbox
+  - x11vnc
+  - websockify
+  - fonts-liberation
+  - fonts-noto-core
+  - fonts-noto-color-emoji
+  # The nft command only: the nftables service stays disabled (its default config flushes Docker's rules)
+  - nftables
+
+# Installs Google's package once; the package then registers Google's apt repository and signing key itself
+claude_agent_chrome_bootstrap_deb_url: "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb"
+
+claude_agent_display_number: 1
+claude_agent_display: ":{{ claude_agent_display_number }}"
+claude_agent_screen_resolution: "1600x1000"
+claude_agent_xauthority_location: "{{ claude_agent_home }}/.Xauthority"
+
+# VNC only listens on the loopback: it is reached through noVNC, or through an SSH tunnel
+claude_agent_vnc_port: 5901
+claude_agent_vnc_conf_location: "{{ claude_agent_home }}/.vnc"
+
+claude_agent_novnc_version: "1.7.0"
+claude_agent_novnc_checksum: "sha256:b1003a11b6e6e8d8f7f5e5586daae7f8ca651d8aee0aa155ff9ac841c48f52c6"
+claude_agent_novnc_install_location: "/opt/novnc"
+claude_agent_novnc_port: 6080
+# Never a public address: noVNC gives control of a Chrome logged into the shopping account.
+# Override with the host's WireGuard address in host_vars to reach it from the VPN.
+claude_agent_novnc_listen_address: "127.0.0.1"
+# Unit providing the listen address, started first
+claude_agent_novnc_after_unit: "network-online.target"
+# Firewall: VNC and noVNC only accept connections from the loopback and from these addresses
+claude_agent_novnc_allowed_sources: []
+
+# Confinement of Chrome and of the tmux session (Claude Code and the commands it runs): see confinement.conf.j2
+claude_agent_confinement_hidden_paths:
+  - /data
+  - /etc/restic
+  - /root
+  - /srv
+  - /var/backups
+  - /var/lib/docker
+claude_agent_confinement_denied_networks:
+  # Docker networks, LAN, WireGuard and other private ranges, link-local (cloud metadata)
+  - 10.0.0.0/8
+  - 172.16.0.0/12
+  - 192.168.0.0/16
+  - 100.64.0.0/10
+  - 169.254.0.0/16
+  - fc00::/7
+  - fe80::/10
+
+# Chrome only runs on request (`claude-browser start`, by Claude Code or from the noVNC desktop menu),
+# and stops by itself after this long
+claude_agent_chrome_max_runtime: "4h"
+# Chrome's own directory (~/.config/google-chrome) is not used: Chrome 136+ ignores the remote debugging port on it.
+# A profile left there by an earlier version is copied here once, Chrome stopped; the original stays as a backup.
+claude_agent_chrome_default_profile_location: "{{ claude_agent_home }}/.config/google-chrome"
+claude_agent_chrome_profile_location: "{{ claude_agent_home }}/.config/claude-chrome"
+# DevTools port, on the loopback only, e.g. for a project's web front end to read a page in ~1 s without tokens.
+# It gives full control of the logged-in Chrome: the firewall only lets the agent user's processes connect.
+# Empty: no debugging port.
+claude_agent_chrome_debugging_port: ""
+# Written by `claude-browser start`: the claude-chrome.path unit then starts Chrome
+claude_agent_chrome_request_file: "{{ claude_agent_home }}/.local/state/claude-browser/requested"
+# Disabled by policy, not uninstalled: their data stays in the profile and they come back once removed from the list.
+# Both inject scripts into every page and weigh on CPU and memory; a password manager has no place in a browser
+# driven by an agent.
+claude_agent_chrome_blocked_extensions:
+  - mlomiejdfkolichcflejclcbmpeaniij  # Ghostery
+  - nngceckbapebfimnlniiiahkandclblb  # Bitwarden
+
+# Global OOM killer: Chrome and Claude Code are killed before the other services' databases
+claude_agent_oom_score_adjust: 500
+claude_agent_chrome_memory_max: "2G"
+# Appended to Chrome's command line
+claude_agent_chrome_extra_args: []
+claude_agent_tmux_memory_max: "1536M"
+
+# Web front ends of the projects. Each one is a service running as the agent user, under the same confinement as
+# the tmux session (they start `claude -p`, thus commands chosen by a model), listening on 127.0.0.1:<port>.
+# Traefik publishes it on https://<domain>, over the VPN only and behind basic auth, through a socket on
+# traefik_host_network's gateway that only accepts Traefik.
+# Each one: {name (systemd unit), project, command, port, domain, environment (optional dict),
+# extra_allowed_source_ranges (optional list: fixed public addresses also accepted for this service only)}
+claude_agent_web_services: []
+# Source ranges Traefik accepts for every web service (the VPN): required when there are web services
+claude_agent_web_allowed_source_ranges: []
+# Basic auth accounts, shared by every web service. Passwords are generated once on the host:
+# sudo cat {{ claude_agent_web_users_file_location }}
+claude_agent_web_users: []
+claude_agent_web_users_file_location: "/etc/claude-agent/web-users.json"
+# Some requests start a `claude -p` and only answer when it ends
+claude_agent_web_response_timeout: "180s"
+claude_agent_web_memory_max: "1G"
+# `claude-web <service> restart` writes here; a path unit run by root restarts that service, and only it
+claude_agent_web_restart_requests_location: "{{ claude_agent_home }}/.local/state/claude-web"
+
+# Guardrails of every Claude Code session: claude-guard (PreToolUse hook, see files/claude-guard) and the managed
+# settings, both root-owned. Two profiles: every session, and the unattended ones (the web front ends' `claude -p`,
+# recognised by their systemd unit), which nobody approves and get stricter rules.
+claude_agent_guard_location: "/usr/local/lib/claude-agent/claude-guard"
+claude_agent_guard_conf_location: "/etc/claude-agent/claude-guard.json"
+# Domains the browser may open, with their subdomains, also checked in the JavaScript run in pages. Empty: any.
+claude_agent_browser_allowed_domains: []
+# Regular expressions (case-insensitive) of pages and calls never allowed, in URLs and in the JavaScript run in pages
+claude_agent_browser_forbidden_patterns: []
+# Project files (relative paths) whose content, pasted unchanged, may rewrite helpers kept in a page's localStorage:
+# unattended sessions write nothing else there, since every later session runs those helpers
+claude_agent_browser_helper_scripts: []
+# Files and directories Claude Code never reads: logins, session cookies, keys
+claude_agent_secret_paths:
+  - "{{ claude_agent_home }}/.claude/.credentials.json"
+  - "{{ claude_agent_chrome_profile_location }}"
+  - "{{ claude_agent_chrome_default_profile_location }}"
+  - "{{ claude_agent_home }}/.ssh"
+  - "{{ claude_agent_vnc_conf_location }}"
+  - "{{ claude_agent_xauthority_location }}"
+# Refused to unattended sessions: clicking, typing and uploading in the browser, web access outside it
+claude_agent_unattended_denied_tools:
+  - mcp__claude-in-chrome__computer
+  - mcp__claude-in-chrome__form_input
+  - mcp__claude-in-chrome__browser_batch
+  - mcp__claude-in-chrome__file_upload
+  - mcp__claude-in-chrome__upload_image
+  - mcp__claude-in-chrome__shortcuts_execute
+  - mcp__claude-in-chrome__switch_browser
+  - mcp__claude-in-chrome__gif_creator
+  - WebFetch
+  - WebSearch
+
+claude_agent_tmux_session: "claude"
+# Projects whose `claude remote-control` starts with the tmux session, thus at boot. Empty until the first manual
+# login to claude.ai (see roles/claude_agent/README.md).
+claude_agent_remote_control_autostart: []

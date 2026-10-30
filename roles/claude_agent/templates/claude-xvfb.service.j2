@@ -1,0 +1,20 @@
+# {{ ansible_managed }}
+
+[Unit]
+Description=Claude agent: virtual display {{ claude_agent_display }}
+StartLimitIntervalSec=0
+
+[Service]
+User={{ claude_agent_user }}
+Group={{ claude_agent_user }}
+ExecStart=/usr/bin/Xvfb {{ claude_agent_display }} -screen 0 {{ claude_agent_screen_resolution }}x24 -nolisten tcp -auth {{ claude_agent_xauthority_location }}
+# Ready once its socket exists: the X clients start after this
+ExecStartPost=/bin/sh -c 'for i in $(seq 100); do [ -S /tmp/.X11-unix/X{{ claude_agent_display_number }} ] && exit 0; sleep 0.1; done; exit 1'
+Restart=always
+RestartSec=5
+
+# Like Chrome and Claude Code: their configuration lives in the home the agent writes to
+{% include 'confinement.conf.j2' %}
+
+[Install]
+WantedBy=multi-user.target

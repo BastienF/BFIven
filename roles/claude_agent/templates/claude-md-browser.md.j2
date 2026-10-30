@@ -1,0 +1,13 @@
+## Chrome (Claude in Chrome)
+
+Chrome does not run permanently on this machine. Before the first `mcp__claude-in-chrome__*` tool call of a task,
+run `claude-browser start` (it waits until the extension is connected). Once the browser work is finished, run
+`claude-browser stop`. Chrome also stops by itself after {{ claude_agent_chrome_max_runtime }}: if the browser tools
+report that no browser is connected, run `claude-browser start` again.
+
+## Playwright
+
+Playwright for Python is installed: `import playwright` with `python`, and the `playwright` command. Its browsers
+({{ claude_agent_playwright_browsers | join(', ') }}) are shared and read-only: `playwright install` fails, ask for
+another browser to be added to the Ansible role instead. Use Playwright's own Chromium (headless, blank profile) for
+scripts and tests; never connect it to the logged-in Chrome above (its DevTools port or its profile).

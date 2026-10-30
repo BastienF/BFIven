@@ -1,0 +1,75 @@
+---
+
+claude_agent_projects:
+  # Leclerc Drive shopping automaton: data/ holds personal data (household, orders history)
+  - name: "coursator"
+    private_dirs: ["data"]
+  # Observation grid of the PAS (Pôle d'Appui à la Scolarité): a static web app, the pupils' data stays in the
+  # browser, never on the server
+  - name: "pas"
+
+# noVNC on bfiven's WireGuard address only: http://10.100.0.2:6080/ from the phone or the PC, VPN on
+claude_agent_novnc_listen_address: "10.100.0.2"
+claude_agent_novnc_after_unit: "wg-quick@wg0.service"
+# The phone and the PC (wireguard_server_peers in host_vars/bfivenus/wireguard.yml); the other peers are refused
+claude_agent_novnc_allowed_sources:
+  - "10.100.0.10"
+  - "10.100.0.11"
+
+# claude-guard, every session: the browser only opens Leclerc Drive, never the pickup slots, the emptying of the cart,
+# the payment or the account (endpoints: docs/site-leclerc.md of the project)
+claude_agent_browser_allowed_domains: ["leclercdrive.fr"]
+claude_agent_browser_forbidden_patterns:
+  - 'saisir-date-retrait'
+  - 'panier\.aspx\?op=(3|7|11)\b'
+  - 'ViderPanier'
+  - 'EnregistrerRetraitPanier'
+  - 'SaisirDateRetrait'
+  - 'ChangerDateRetrait'
+  - 'paiement'
+  - 'mon-compte'
+  - 'mes-informations'
+  - 'mot-de-passe'
+# The skills paste them as is when a page has no helpers yet
+claude_agent_browser_helper_scripts: ["scripts/chrome/leclerc.js", "scripts/chrome/historique.js"]
+
+# Coursator's web front end reads the Leclerc cart through it (~1 s instead of a ~70 s `claude -p`)
+claude_agent_chrome_debugging_port: 9222
+
+# https://courses.moi.ovh/, VPN on: the ad-blocking DNS (blocky_custom_dns, host_vars/bfivenus/blocky.yml) resolves it
+# to bfiven's tunnel address. Coursator also from a few fixed public addresses, without the VPN (public DNS).
+claude_agent_web_services:
+  - name: "coursator-web"
+    project: "coursator"
+    command: "/usr/bin/python3 web/server.py"
+    port: 8765
+    domain: "courses.{{ domain }}"
+    environment:
+      COURSATOR_WEB_BIND: "127.0.0.1"
+      COURSATOR_WEB_PORT: "8765"
+      COURSATOR_WEB_ORIGIN: "https://courses.{{ domain }}"
+      COURSATOR_CDP: "127.0.0.1:{{ claude_agent_chrome_debugging_port }}"
+    # Defined in the gitignored host_vars/bfiven/claude_agent_secret.yml
+    extra_allowed_source_ranges: "{{ claude_agent_coursator_web_public_source_ranges | default([]) }}"
+  # https://pas.moi.ovh/, same access rules: static files of the project's web/ directory, no backend
+  - name: "pas-web"
+    project: "pas"
+    command: "/usr/bin/python3 -m http.server 8766 --bind 127.0.0.1 --directory web"
+    port: 8766
+    domain: "pas.{{ domain }}"
+claude_agent_web_allowed_source_ranges:
+  - "10.100.0.0/24"
+# The household; written in web/logs as who made each request
+claude_agent_web_users:
+  - "bastien"
+  - "compte2"
+
+# Started with the tmux session, thus at boot and after `systemctl restart claude-tmux` (claude.ai login done)
+claude_agent_remote_control_autostart: ["coursator", "pas"]
+# Two Remote Control servers (~1.1 GB measured with Coursator alone) and Playwright's Chromium for the PAS tests
+claude_agent_tmux_memory_max: "2560M"
+
+# Chrome goes out through the coursator exit tunnel (run_coursator_sortie.yml): WebRTC must not open UDP flows of its
+# own, e.g. reveal another address through STUN
+claude_agent_chrome_extra_args:
+  - "--force-webrtc-ip-handling-policy=disable_non_proxied_udp"

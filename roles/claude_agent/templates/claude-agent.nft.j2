@@ -1,0 +1,31 @@
+#!/usr/sbin/nft -f
+# {{ ansible_managed }}
+
+# Replaces only this table: Docker's rules are left alone. A drop here is final whatever the other tables accept.
+table inet claude_agent
+delete table inet claude_agent
+
+table inet claude_agent {
+    chain input {
+        type filter hook input priority filter; policy accept;
+
+        iif "lo" tcp dport { {{ claude_agent_vnc_port }}, {{ claude_agent_novnc_port }} } accept
+{% if claude_agent_novnc_allowed_sources %}
+        ip saddr { {{ claude_agent_novnc_allowed_sources | join(', ') }} } tcp dport {{ claude_agent_novnc_port }} accept
+{% endif %}
+        tcp dport { {{ claude_agent_vnc_port }}, {{ claude_agent_novnc_port }} } drop
+{% if claude_agent_chrome_debugging_port | string | length > 0 %}
+        iif != "lo" tcp dport {{ claude_agent_chrome_debugging_port }} drop
+{% endif %}
+    }
+{% if claude_agent_chrome_debugging_port | string | length > 0 %}
+
+    # Chrome's DevTools port gives full control of the logged-in Chrome: only the agent user's processes (Claude
+    # Code, the projects' web front ends) may connect, they already drive it through the extension
+    chain output {
+        type filter hook output priority filter; policy accept;
+
+        oif "lo" tcp dport {{ claude_agent_chrome_debugging_port }} meta skuid != "{{ claude_agent_user }}" reject with tcp reset
+    }
+{% endif %}
+}

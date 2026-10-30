@@ -1,0 +1,215 @@
+---
+
+- name: deploy claude agent scripts
+  become: true
+  template:
+    src: "{{ item }}.j2"
+    dest: "/usr/local/bin/{{ item }}"
+    mode: "0755"
+  with_items:
+    - claude-health
+    - claude-remote-control
+    - claude-browser
+
+- name: create claude agent conf directory
+  become: true
+  file:
+    path: /etc/claude-agent
+    state: directory
+    mode: "0755"
+
+# Restricts only: no port is opened, VNC and noVNC are dropped unless they come from the loopback or the allowed
+# VPN addresses. A table of its own, next to Docker's iptables rules.
+- name: deploy claude agent firewall rules
+  become: true
+  template:
+    src: claude-agent.nft.j2
+    dest: /etc/claude-agent/claude-agent.nft
+    mode: "0644"
+    validate: "/usr/sbin/nft -c -f %s"
+  notify: restart claude agent firewall
+
+- name: create chrome request directory
+  become: true
+  file:
+    path: "{{ claude_agent_chrome_request_file | dirname }}"
+    state: directory
+    owner: "{{ claude_agent_user }}"
+    group: "{{ claude_agent_user }}"
+    mode: "0700"
+
+# A request left over from before a reboot must not start Chrome at boot
+- name: clear chrome requests at boot
+  become: true
+  copy:
+    content: "r {{ claude_agent_chrome_request_file }}\n"
+    dest: /etc/tmpfiles.d/claude-browser.conf
+    mode: "0644"
+
+# Desktop menu (right click in noVNC): start or stop Chrome by hand, e.g. to log in again
+- name: create openbox conf directory
+  become: true
+  file:
+    path: "{{ claude_agent_home }}/.config/openbox"
+    state: directory
+    owner: "{{ claude_agent_user }}"
+    group: "{{ claude_agent_user }}"
+    mode: "0755"
+
+- name: deploy openbox menu
+  become: true
+  template:
+    src: openbox-menu.xml.j2
+    dest: "{{ claude_agent_home }}/.config/openbox/menu.xml"
+    owner: "{{ claude_agent_user }}"
+    group: "{{ claude_agent_user }}"
+    mode: "0644"
+
+# Every project: Chrome has to be started before the browser tools are used
+- name: create claude code user directory
+  become: true
+  file:
+    path: "{{ claude_agent_home }}/.claude"
+    state: directory
+    owner: "{{ claude_agent_user }}"
+    group: "{{ claude_agent_user }}"
+    mode: "0700"
+
+- name: tell claude code how to start chrome
+  become: true
+  blockinfile:
+    path: "{{ claude_agent_home }}/.claude/CLAUDE.md"
+    create: true
+    owner: "{{ claude_agent_user }}"
+    group: "{{ claude_agent_user }}"
+    mode: "0644"
+    marker: "<!-- {mark} ANSIBLE MANAGED BLOCK claude_agent -->"
+    block: "{{ lookup('template', 'claude-md-browser.md.j2') }}"
+
+- name: tell claude code about rtk
+  become: true
+  blockinfile:
+    path: "{{ claude_agent_home }}/.claude/CLAUDE.md"
+    create: true
+    owner: "{{ claude_agent_user }}"
+    group: "{{ claude_agent_user }}"
+    mode: "0644"
+    marker: "<!-- {mark} ANSIBLE MANAGED BLOCK claude_agent rtk -->"
+    block: "{{ lookup('template', 'claude-md-rtk.md.j2') }}"
+
+- name: create claude code managed settings directory
+  become: true
+  file:
+    path: /etc/claude-code
+    state: directory
+    mode: "0755"
+
+- name: create claude-guard directory
+  become: true
+  file:
+    path: "{{ claude_agent_guard_location | dirname }}"
+    state: directory
+    mode: "0755"
+
+# Before the managed settings that declare it: a missing hook would let every call through
+- name: deploy claude-guard
+  become: true
+  copy:
+    src: claude-guard
+    dest: "{{ claude_agent_guard_location }}"
+    mode: "0755"
+
+- name: configure claude-guard
+  become: true
+  copy:
+    content: "{{ claude_agent_guard_conf | to_nice_json }}\n"
+    dest: "{{ claude_agent_guard_conf_location }}"
+    mode: "0644"
+  vars:
+    claude_agent_guard_conf:
+      allowed_domains: "{{ claude_agent_browser_allowed_domains }}"
+      forbidden_patterns: "{{ claude_agent_browser_forbidden_patterns }}"
+      secret_paths: "{{ claude_agent_secret_paths }}"
+      unattended_units: "{{ claude_agent_web_services | map(attribute='name') | map('regex_replace', '$', '.service') | list }}"
+      unattended_denied_tools: "{{ claude_agent_unattended_denied_tools }}"
+      helper_scripts: "{{ claude_agent_browser_helper_scripts }}"
+
+# Common to every session, out of the agent's reach (root-owned, above user and project settings): Chrome on
+# request, secrets never read, no bypass of the permission prompts, claude-guard before each browser or file tool,
+# RTK before each shell command. RTK only approves a rewritten command itself when the user or project settings allow
+# it: otherwise Claude Code's own permission check applies, as without the hook.
+- name: deploy claude code managed settings
+  become: true
+  copy:
+    content: "{{ claude_agent_managed_settings | to_nice_json }}\n"
+    dest: /etc/claude-code/managed-settings.json
+    mode: "0644"
+  vars:
+    claude_agent_managed_settings:
+      permissions:
+        allow: ["Bash(claude-browser start)", "Bash(claude-browser stop)", "Bash(claude-browser status)"]
+        # "//": absolute paths in permission rules
+        deny: "{{ claude_agent_secret_paths | map('regex_replace', '^(.*)$', 'Read(/\\1)') | list
+                  + claude_agent_secret_paths | map('regex_replace', '^(.*)$', 'Read(/\\1/**)') | list }}"
+        disableBypassPermissionsMode: "disable"
+      env:
+        # rtk looks for its hook in ~/.claude/settings.json only: without this, it would advise running `rtk init`
+        RTK_SUPPRESS_HOOK_WARNING: "1"
+      hooks:
+        PreToolUse:
+          - matcher: "mcp__claude-in-chrome__.*|Read|Glob|Grep|WebFetch|WebSearch"
+            hooks:
+              - type: "command"
+                command: "{{ claude_agent_guard_location }}"
+                timeout: 10
+          - matcher: "Bash"
+            hooks:
+              - type: "command"
+                command: "{{ claude_agent_rtk_binary }} hook claude"
+
+- name: deploy claude agent units
+  become: true
+  template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    mode: "0644"
+  with_items:
+    - claude-firewall.service
+    - claude-xvfb.service
+    - claude-openbox.service
+    - claude-x11vnc.service
+    - claude-novnc.service
+    - claude-chrome.service
+    - claude-chrome.path
+    - claude-tmux.service
+  register: claude_agent_units
+
+- name: reload systemd
+  become: true
+  systemd:
+    daemon_reload: true
+  when: claude_agent_units is changed
+
+# Only the running ones (Chrome may be off). Not the tmux session: it would kill running Claude Code sessions,
+# its changes apply at its next restart.
+- name: restart changed claude agent units
+  become: true
+  command: "systemctl try-restart {{ claude_agent_units.results | selectattr('changed') | map(attribute='item') | reject('equalto', 'claude-tmux.service') | join(' ') }}"
+  when: claude_agent_units.results | selectattr('changed') | rejectattr('item', 'equalto', 'claude-tmux.service') | list | length > 0
+
+- meta: flush_handlers
+
+- name: enable claude agent services
+  become: true
+  systemd:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+  with_items:
+    - claude-firewall.service
+    - claude-xvfb.service
+    - claude-openbox.service
+    - claude-x11vnc.service
+    - claude-novnc.service
+    - claude-chrome.path
+    - claude-tmux.service

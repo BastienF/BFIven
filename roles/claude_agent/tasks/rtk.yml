@@ -1,0 +1,49 @@
+---
+
+# Root-owned, like Playwright: the agent runs it, neither it nor a page it reads can alter it. No `rtk init`: the hook
+# is declared in the managed settings (services.yml), out of the agent's reach.
+- name: create rtk directory
+  become: true
+  file:
+    path: "{{ claude_agent_rtk_install_location }}/{{ claude_agent_rtk_version }}"
+    state: directory
+    mode: "0755"
+
+- name: check rtk
+  stat:
+    path: "{{ claude_agent_rtk_install_location }}/{{ claude_agent_rtk_version }}/rtk"
+  register: claude_agent_rtk_files
+
+- name: install rtk
+  when: not claude_agent_rtk_files.stat.exists
+  block:
+    - name: download rtk
+      become: true
+      get_url:
+        url: "https://github.com/rtk-ai/rtk/releases/download/v{{ claude_agent_rtk_version }}/rtk-x86_64-unknown-linux-musl.tar.gz"
+        dest: "{{ claude_agent_rtk_install_location }}/rtk-{{ claude_agent_rtk_version }}.tar.gz"
+        checksum: "{{ claude_agent_rtk_checksum }}"
+        mode: "0644"
+
+    - name: extract rtk
+      become: true
+      unarchive:
+        src: "{{ claude_agent_rtk_install_location }}/rtk-{{ claude_agent_rtk_version }}.tar.gz"
+        dest: "{{ claude_agent_rtk_install_location }}/{{ claude_agent_rtk_version }}"
+        remote_src: true
+        owner: root
+        group: root
+
+    - name: remove the downloaded rtk archive
+      become: true
+      file:
+        path: "{{ claude_agent_rtk_install_location }}/rtk-{{ claude_agent_rtk_version }}.tar.gz"
+        state: absent
+
+- name: add the rtk command
+  become: true
+  file:
+    src: "{{ claude_agent_rtk_install_location }}/{{ claude_agent_rtk_version }}/rtk"
+    dest: "{{ claude_agent_rtk_binary }}"
+    state: link
+    follow: false

@@ -1,0 +1,34 @@
+---
+
+# Only the agent user's processes may connect to the virtual display: other local users could otherwise read
+# or drive the logged-in Chrome
+- name: create the X authority cookie
+  become: true
+  command: >-
+    runuser -u {{ claude_agent_user }} --
+    sh -c 'umask 077 && xauth -f {{ claude_agent_xauthority_location }} add {{ claude_agent_display }} . "$(mcookie)"'
+  args:
+    creates: "{{ claude_agent_xauthority_location }}"
+  no_log: true
+
+- name: create vnc conf directory
+  become: true
+  file:
+    path: "{{ claude_agent_vnc_conf_location }}"
+    state: directory
+    owner: "{{ claude_agent_user }}"
+    group: "{{ claude_agent_user }}"
+    mode: "0700"
+
+# Generated once on the host. VNC truncates passwords to 8 characters: the real barrier is that VNC and noVNC
+# are only reachable from the loopback and the VPN.
+- name: generate the vnc password
+  become: true
+  command: >-
+    runuser -u {{ claude_agent_user }} --
+    sh -c 'umask 077
+    && tr -dc A-Za-z0-9 < /dev/urandom | head -c 8 > {{ claude_agent_vnc_conf_location }}/password
+    && x11vnc -storepasswd "$(cat {{ claude_agent_vnc_conf_location }}/password)" {{ claude_agent_vnc_conf_location }}/passwd'
+  args:
+    creates: "{{ claude_agent_vnc_conf_location }}/passwd"
+  no_log: true

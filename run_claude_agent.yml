@@ -1,0 +1,7 @@
+---
+
+# First run of a project: -e '{"claude_agent_project_sources": {"coursator": "/path/to/coursator/"}}'
+# copies it to the server (once)
+- hosts: server
+  roles:
+    - role: claude_agent

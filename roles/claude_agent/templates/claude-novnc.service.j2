@@ -1,0 +1,23 @@
+# {{ ansible_managed }}
+
+[Unit]
+Description=Claude agent: noVNC web client on {{ claude_agent_novnc_listen_address }}:{{ claude_agent_novnc_port }}
+Requires=claude-firewall.service
+Wants={{ claude_agent_novnc_after_unit }}
+After=claude-firewall.service {{ claude_agent_novnc_after_unit }}
+StartLimitIntervalSec=0
+
+[Service]
+DynamicUser=true
+ExecStart=/usr/bin/websockify --web {{ claude_agent_novnc_install_location }}/{{ claude_agent_novnc_version }} {{ claude_agent_novnc_listen_address }}:{{ claude_agent_novnc_port }} 127.0.0.1:{{ claude_agent_vnc_port }}
+# Until the listen address exists (e.g. the VPN interface is coming up)
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+
+[Install]
+WantedBy=multi-user.target

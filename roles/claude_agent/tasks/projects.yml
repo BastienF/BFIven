@@ -1,0 +1,55 @@
+---
+
+- name: create projects directory
+  become: true
+  file:
+    path: "{{ claude_agent_projects_location }}"
+    state: directory
+    owner: "{{ claude_agent_user }}"
+    group: "{{ claude_agent_user }}"
+    mode: "0700"
+
+- name: check projects
+  become: true
+  stat:
+    path: "{{ claude_agent_projects_location }}/{{ item.name }}"
+  with_items: "{{ claude_agent_projects }}"
+  register: claude_agent_project_dirs
+
+# Once only: afterwards Claude Code updates the projects on the server, which must not be overwritten
+- name: copy projects
+  become: true
+  copy:
+    src: "{{ claude_agent_project_sources[item.item.name] | regex_replace('/?$', '/') }}"
+    dest: "{{ claude_agent_projects_location }}/{{ item.item.name }}/"
+    owner: "{{ claude_agent_user }}"
+    group: "{{ claude_agent_user }}"
+    mode: "u=rwX,g=,o="
+    directory_mode: "0700"
+  with_items: "{{ claude_agent_project_dirs.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: not item.stat.exists and item.item.name in claude_agent_project_sources
+
+- name: create project directories
+  become: true
+  file:
+    path: "{{ claude_agent_projects_location }}/{{ item.name }}"
+    state: directory
+    owner: "{{ claude_agent_user }}"
+    group: "{{ claude_agent_user }}"
+    mode: "0700"
+  with_items: "{{ claude_agent_projects }}"
+
+- name: restrict private project directories
+  become: true
+  file:
+    path: "{{ claude_agent_projects_location }}/{{ item.0.name }}/{{ item.1 }}"
+    state: directory
+    owner: "{{ claude_agent_user }}"
+    group: "{{ claude_agent_user }}"
+    mode: "0700"
+  with_subelements:
+    - "{{ claude_agent_projects }}"
+    - private_dirs
+    - skip_missing: true

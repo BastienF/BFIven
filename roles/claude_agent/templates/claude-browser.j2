@@ -1,0 +1,83 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# Starts or stops the agent's Chrome, which only runs on request (it stops by itself after {{ claude_agent_chrome_max_runtime }}).
+# Usage: claude-browser [start|stop|status]
+set -euo pipefail
+# Commands from the system only: an admin may run this outside the confinement, and the agent can write to
+# ~/.local/bin
+export PATH="/usr/local/bin:/usr/bin:/bin"
+
+if [ "$(id -un)" != "{{ claude_agent_user }}" ]; then
+  exec sudo -u {{ claude_agent_user }} -H "$0" "$@"
+fi
+
+request_file="{{ claude_agent_chrome_request_file }}"
+# Where the native messaging host, started by the Claude extension, opens its <pid>.sock for Claude Code
+bridge_dir="/tmp/claude-mcp-browser-bridge-{{ claude_agent_user }}"
+
+chrome_running() {
+  pgrep -u {{ claude_agent_user }} -x chrome > /dev/null
+}
+
+# Only a live host counts: one killed abruptly leaves its socket behind
+extension_connected() {
+  local socket
+  for socket in "$bridge_dir"/*.sock; do
+    if [ -S "$socket" ] && kill -0 "$(basename "$socket" .sock)" 2> /dev/null; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Microseconds; the separator of EPOCHREALTIME follows the locale
+now_us() {
+  echo "${EPOCHREALTIME//[!0-9]/}"
+}
+
+case "${1:-status}" in
+  start)
+    started_at=$(now_us)
+    mkdir -p "$(dirname "$request_file")"
+    touch "$request_file"
+    # 30 s, polled every 0.2 s
+    for _ in $(seq 150); do
+      if extension_connected; then
+        elapsed_ds=$(( ($(now_us) - started_at) / 100000 ))
+        echo "Chrome running (extension ready in $((elapsed_ds / 10)).$((elapsed_ds % 10))s)"
+        exit 0
+      fi
+      sleep 0.2
+    done
+    if chrome_running; then
+      echo "Chrome running, but the Claude extension did not connect: journalctl -u claude-chrome" >&2
+    else
+      echo "Chrome did not start: journalctl -u claude-chrome" >&2
+    fi
+    exit 1
+    ;;
+  stop)
+    rm -f "$request_file"
+    # The browser process only (the oldest): it closes its own children and records a clean exit. Signalling
+    # them all killed the network service and the zygote under it, while it was still shutting down.
+    pkill -TERM -o -u {{ claude_agent_user }} -x chrome || true
+    for _ in $(seq 40); do
+      chrome_running || { echo "Chrome stopped"; exit 0; }
+      sleep 0.5
+    done
+    echo "Chrome still running" >&2
+    exit 1
+    ;;
+  status)
+    if chrome_running; then
+      echo "Chrome running"
+    else
+      echo "Chrome stopped"
+      exit 1
+    fi
+    ;;
+  *)
+    echo "Usage: $0 [start|stop|status]" >&2
+    exit 2
+    ;;
+esac

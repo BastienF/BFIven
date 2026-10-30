@@ -1,0 +1,8 @@
+---
+
+- name: restart claude agent firewall
+  become: true
+  systemd:
+    name: claude-firewall
+    state: restarted
+    daemon_reload: true

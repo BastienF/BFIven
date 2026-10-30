@@ -1,0 +1,28 @@
+# {{ ansible_managed }}
+# Reached through {{ web_service.name }}-proxy.socket (Traefik only), see claude_agent_web_services
+
+[Unit]
+Description=Claude agent: web front end of {{ web_service.project }} on 127.0.0.1:{{ web_service.port }}
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+User={{ claude_agent_user }}
+Group={{ claude_agent_user }}
+WorkingDirectory={{ claude_agent_projects_location }}/{{ web_service.project }}
+Environment=PATH={{ claude_agent_home }}/.local/bin:/usr/local/bin:/usr/bin:/bin LANG={{ claude_agent_locale }} TZ={{ claude_agent_timezone }} PLAYWRIGHT_BROWSERS_PATH={{ claude_agent_playwright_browsers_location }}
+{% for key, value in (web_service.environment | default({})).items() %}
+Environment="{{ key }}={{ value }}"
+{% endfor %}
+ExecStart={{ web_service.command }}
+Restart=always
+RestartSec=5
+# Also holds the `claude -p` it starts
+MemoryMax={{ claude_agent_web_memory_max }}
+OOMScoreAdjust={{ claude_agent_oom_score_adjust }}
+
+{% include 'confinement.conf.j2' %}
+
+[Install]
+WantedBy=multi-user.target

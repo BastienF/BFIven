@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+
+[Unit]
+Description=Claude agent: starts Chrome when claude-browser requests it
+
+[Path]
+PathExists={{ claude_agent_chrome_request_file }}
+Unit=claude-chrome.service
+
+[Install]
+WantedBy=multi-user.target

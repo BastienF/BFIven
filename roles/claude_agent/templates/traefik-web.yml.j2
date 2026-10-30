@@ -1,0 +1,46 @@
+# {{ ansible_managed }}
+# Web front ends of the Claude agent's projects (claude_agent_web_services): VPN (plus each service's extra source
+# ranges) only, basic auth
+
+http:
+  routers:
+{% for web_service in claude_agent_web_services %}
+    {{ web_service.name }}:
+      rule: "Host(`{{ web_service.domain }}`)"
+      entryPoints: ["websecure"]
+      tls:
+        certResolver: "lteResolver"
+      middlewares: ["{{ web_service.name }}-allowlist", "claude-agent-web-auth"]
+      service: "{{ web_service.name }}"
+{% endfor %}
+
+  middlewares:
+{% for web_service in claude_agent_web_services %}
+    {{ web_service.name }}-allowlist:
+      ipAllowList:
+        sourceRange: {{ (claude_agent_web_allowed_source_ranges + web_service.extra_allowed_source_ranges | default([])) | to_json }}
+{% endfor %}
+    # The Authorization header is forwarded too: the front ends log who made each request
+    claude-agent-web-auth:
+      basicAuth:
+        realm: "Claude agent"
+        headerField: "X-Forwarded-User"
+        users:
+{% for user in claude_agent_web_users %}
+          - "{{ user }}:{{ claude_agent_web_credentials[user].hash }}"
+{% endfor %}
+
+  services:
+{% for web_service in claude_agent_web_services %}
+    {{ web_service.name }}:
+      loadBalancer:
+        serversTransport: "claude-agent-web"
+        servers:
+          - url: "http://{{ traefik_host_network.gateway }}:{{ web_service.port }}"
+{% endfor %}
+
+  # Long polling, and requests waiting for a `claude -p`
+  serversTransports:
+    claude-agent-web:
+      forwardingTimeouts:
+        responseHeaderTimeout: "{{ claude_agent_web_response_timeout }}"

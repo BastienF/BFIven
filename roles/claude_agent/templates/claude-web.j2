@@ -1,0 +1,49 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# Restarts a project's web front end, without privileges: a path unit run by root watches the request.
+# Usage: claude-web <service> [restart|status]
+set -euo pipefail
+# Commands from the system only: an admin may run this outside the confinement, and the agent can write to
+# ~/.local/bin
+export PATH="/usr/local/bin:/usr/bin:/bin"
+
+if [ "$(id -un)" != "{{ claude_agent_user }}" ]; then
+  exec sudo -u {{ claude_agent_user }} -H "$0" "$@"
+fi
+
+services=({% for web_service in claude_agent_web_services %}{{ web_service.name }} {% endfor %})
+service="${1:-}"
+if [ -z "$service" ] || [[ " ${services[*]} " != *" $service "* ]]; then
+  echo "Usage: $0 <service> [restart|status]   services: ${services[*]}" >&2
+  exit 2
+fi
+
+started_at() {
+  systemctl show -p ActiveEnterTimestampMonotonic --value "$service.service"
+}
+
+case "${2:-status}" in
+  restart)
+    before=$(started_at)
+    mkdir -p "{{ claude_agent_web_restart_requests_location }}"
+    date +%s > "{{ claude_agent_web_restart_requests_location }}/$service"
+    # 30 s, polled every 0.5 s
+    for _ in $(seq 60); do
+      if [ "$(started_at)" != "$before" ] && systemctl is-active --quiet "$service.service"; then
+        echo "$service restarted"
+        exit 0
+      fi
+      sleep 0.5
+    done
+    echo "$service not restarted: systemctl status $service-restart.path $service.service" >&2
+    exit 1
+    ;;
+  status)
+    echo "$service: $(systemctl is-active "$service.service")"
+    systemctl is-active --quiet "$service.service"
+    ;;
+  *)
+    echo "Usage: $0 <service> [restart|status]" >&2
+    exit 2
+    ;;
+esac

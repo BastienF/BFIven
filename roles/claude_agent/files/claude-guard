@@ -1,0 +1,164 @@
+#!/usr/bin/python3
+"""PreToolUse hook of every Claude Code session of the agent user, declared in the managed settings.
+
+Guardrails that permission rules cannot express. Exit code 2 blocks the tool call and stderr tells Claude why.
+It fails closed: any unexpected error blocks the call too (any other exit code would let it through).
+
+Two profiles, picked from the systemd unit the session runs in (set by systemd, out of the agent's reach):
+- every session: the browser only opens the allowed domains and never a forbidden page (checkout, pickup slot,
+  account); JavaScript run in pages names no other domain; the secrets of the home are never read;
+- unattended sessions (`claude -p` started by a web front end, nobody approves anything): on top of that, only
+  the project's files, no clicking / typing / uploading browser tools, no web access outside the browser, and
+  the helpers stored in a page's localStorage are only rewritten with the project's own helper scripts.
+
+Configuration: /etc/claude-agent/claude-guard.json (see claude_agent_guard_* in the role's defaults).
+"""
+import json
+import os
+import re
+import sys
+from pathlib import Path
+from urllib.parse import urlsplit
+
+CONFIG_LOCATION = '/etc/claude-agent/claude-guard.json'
+BROWSER = 'mcp__claude-in-chrome__'
+FILE_TOOLS = ('Read', 'Glob', 'Grep')
+# https://host, wss://host, //host (protocol-relative)
+URL_IN_TEXT = re.compile(r'(?:\b[a-z][a-z0-9+.-]*:)?//([a-z0-9-]+(?:\.[a-z0-9-]+)+)', re.I)
+LOCAL_STORAGE_WRITE = re.compile(r'localStorage\s*(?:\.\s*\w+\s*=(?!=)|\[[^\]]*\]\s*=(?!=)|\.\s*setItem\b)')
+GLOB_CHARACTERS = re.compile(r'[*?\[{]')
+
+
+class Blocked(Exception):
+    pass
+
+
+def session_unit():
+    """Systemd unit of this process (the same as the Claude Code session that runs the hook)."""
+    for line in Path('/proc/self/cgroup').read_text().splitlines():
+        for part in reversed(line.split(':', 2)[2].split('/')):
+            if part.endswith('.service'):
+                return part
+    return None
+
+
+def domain_allowed(host, config):
+    domains = config['allowed_domains']
+    host = host.lower().rstrip('.')
+    return not domains or any(host == d or host.endswith('.' + d) for d in domains)
+
+
+def check_forbidden(text, config):
+    for pattern in config['forbidden_patterns']:
+        if re.search(pattern, text, re.I):
+            raise Blocked(f'forbidden page or action ({pattern}): checkout, pickup slots, emptying the cart and '
+                          'the account are never automated')
+
+
+def check_url(url, config):
+    if url in ('back', 'forward'):
+        return
+    parts = urlsplit(url if '//' in url else 'https://' + url)
+    if parts.scheme not in ('http', 'https'):
+        raise Blocked(f'only web pages can be opened, not {parts.scheme}: URLs')
+    if not domain_allowed(parts.hostname or '', config):
+        raise Blocked(f'{parts.hostname} is not an allowed domain ({", ".join(config["allowed_domains"])})')
+    check_forbidden(url, config)
+
+
+def check_text(text, config):
+    """Any text sent to the browser: code, typed text, form values."""
+    check_forbidden(text, config)
+    for host in URL_IN_TEXT.findall(text):
+        if not domain_allowed(host, config):
+            raise Blocked(f'{host} is not an allowed domain: no request or link to another site')
+
+
+def strings_of(value):
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for v in value.values():
+            yield from strings_of(v)
+    elif isinstance(value, list):
+        for v in value:
+            yield from strings_of(v)
+
+
+def check_helpers_rewrite(code, cwd, config):
+    """Unattended: the helpers kept in localStorage are run by every later session, they are only rewritten with
+    the content of one of the project's helper scripts, pasted as is."""
+    if not LOCAL_STORAGE_WRITE.search(code):
+        return
+    for helper in config['helper_scripts']:
+        path = Path(cwd, helper)
+        if path.is_file() and path.read_text(encoding='utf-8').strip() in code:
+            return
+    raise Blocked('localStorage is only written by the project\'s helper scripts, pasted unchanged')
+
+
+def check_browser(tool, tool_input, cwd, unattended, config):
+    if unattended and BROWSER + tool in config['unattended_denied_tools']:
+        raise Blocked(f'{tool} is not available to unattended sessions')
+    if tool == 'browser_batch':
+        for action in tool_input.get('actions') or []:
+            check_browser(action.get('name', ''), action.get('input') or {}, cwd, unattended, config)
+        return
+    if tool in ('navigate', 'tabs_create_mcp') and tool_input.get('url'):
+        check_url(tool_input['url'], config)
+    for text in strings_of(tool_input):
+        check_text(text, config)
+    if unattended and tool == 'javascript_tool':
+        check_helpers_rewrite(tool_input.get('text') or '', cwd, config)
+
+
+def file_paths(tool, tool_input, cwd):
+    """Paths a file tool reads: for a glob pattern, its directory part before the first wildcard."""
+    paths = [tool_input.get('file_path') or tool_input.get('path') or cwd]
+    pattern = tool_input.get('pattern') if tool == 'Glob' else tool_input.get('glob')
+    if pattern:
+        prefix = GLOB_CHARACTERS.split(pattern, 1)[0]
+        paths.append(os.path.join(paths[0], os.path.dirname(prefix) if GLOB_CHARACTERS.search(pattern) else prefix))
+    return [os.path.realpath(os.path.join(cwd, os.path.expanduser(p))) for p in paths]
+
+
+def inside(path, directory):
+    return path == directory or path.startswith(directory.rstrip('/') + '/')
+
+
+def check_files(tool, tool_input, cwd, unattended, config):
+    project = os.path.realpath(cwd)
+    for path in file_paths(tool, tool_input, cwd):
+        if any(inside(path, os.path.realpath(secret)) for secret in config['secret_paths']):
+            raise Blocked(f'{path} holds secrets (logins, session cookies, keys): never read')
+        if unattended and not inside(path, project):
+            raise Blocked(f'{path} is outside the project: unattended sessions only read the project\'s files')
+
+
+def check(event, unit, config):
+    tool, tool_input = event.get('tool_name', ''), event.get('tool_input') or {}
+    cwd = event.get('cwd') or os.getcwd()
+    unattended = unit in config['unattended_units']
+    if unattended and tool in config['unattended_denied_tools']:
+        raise Blocked(f'{tool} is not available to unattended sessions')
+    if tool.startswith(BROWSER):
+        check_browser(tool[len(BROWSER):], tool_input, cwd, unattended, config)
+    elif tool in FILE_TOOLS:
+        check_files(tool, tool_input, cwd, unattended, config)
+
+
+def main():
+    try:
+        config = json.loads(Path(CONFIG_LOCATION).read_text(encoding='utf-8'))
+        check(json.load(sys.stdin), session_unit(), config)
+    except Blocked as e:
+        print(f'Blocked by claude-guard: {e}.', file=sys.stderr)
+        return 2
+    except Exception as e:  # noqa: BLE001 — fail closed
+        print(f'Blocked by claude-guard: internal error ({e!r}), the call is refused.', file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

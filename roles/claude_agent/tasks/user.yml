@@ -1,0 +1,42 @@
+---
+
+- name: create claude agent user
+  become: true
+  user:
+    name: "{{ claude_agent_user }}"
+    shell: /bin/bash
+    home: "{{ claude_agent_home }}"
+    create_home: true
+
+# Holds the Chrome profile (Leclerc session cookies) and the Claude Code login
+- name: restrict claude agent home
+  become: true
+  file:
+    path: "{{ claude_agent_home }}"
+    state: directory
+    owner: "{{ claude_agent_user }}"
+    group: "{{ claude_agent_user }}"
+    mode: "0700"
+
+- name: generate claude agent locale
+  become: true
+  shell: "locale -a | grep -qx '{{ claude_agent_locale | replace('UTF-8', 'utf8') }}' || { locale-gen {{ claude_agent_locale }} && echo generated; }"
+  register: claude_agent_locale_gen
+  changed_when: "'generated' in claude_agent_locale_gen.stdout"
+
+# Login shells of the (confined) tmux session
+- name: configure claude agent shell environment
+  become: true
+  blockinfile:
+    path: "{{ claude_agent_home }}/.profile"
+    create: true
+    owner: "{{ claude_agent_user }}"
+    group: "{{ claude_agent_user }}"
+    mode: "0644"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK claude_agent"
+    block: |
+      export PATH="$HOME/.local/bin:$PATH"
+      export LANG={{ claude_agent_locale }}
+      export TZ={{ claude_agent_timezone }}
+      export DISPLAY={{ claude_agent_display }}
+      export PLAYWRIGHT_BROWSERS_PATH={{ claude_agent_playwright_browsers_location }}

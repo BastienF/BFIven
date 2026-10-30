@@ -1,0 +1,17 @@
+# {{ ansible_managed }}
+# Where Traefik reaches {{ web_service.name }}: the host's address on Traefik's host network. The front end itself
+# stays on the loopback, under the same confinement as Claude Code (which denies Docker's addresses).
+
+[Unit]
+Description=Claude agent: Traefik's access to the web front end of {{ web_service.project }}
+
+[Socket]
+ListenStream={{ traefik_host_network.gateway }}:{{ web_service.port }}
+# The address only exists once Docker has created the network
+FreeBind=true
+# Traefik only: not the other containers, the LAN or the VPN
+IPAddressDeny=any
+IPAddressAllow={{ traefik_host_network.subnet }}
+
+[Install]
+WantedBy=sockets.target

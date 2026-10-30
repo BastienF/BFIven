@@ -1,0 +1,14 @@
+---
+
+# Official native installer. Claude Code then updates itself in the background; updates apply when it restarts.
+# No login here: it is done by hand (claude.ai subscription), and never stored by Ansible.
+# Not a login shell: it would source ~/.profile and ~/.bashrc, written to by the confined agent, outside the
+# confinement (it runs again whenever ~/.local/bin/claude goes missing)
+- name: install claude code
+  become: true
+  command: >-
+    runuser -u {{ claude_agent_user }} --
+    env -i HOME={{ claude_agent_home }} PATH=/usr/local/bin:/usr/bin:/bin
+    bash --noprofile --norc -c 'set -o pipefail && curl -fsSL https://claude.ai/install.sh | bash'
+  args:
+    creates: "{{ claude_agent_home }}/.local/bin/claude"

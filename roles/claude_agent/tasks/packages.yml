@@ -1,0 +1,117 @@
+---
+
+- name: add deadsnakes repository
+  become: true
+  apt_repository:
+    repo: "ppa:deadsnakes/ppa"
+  when: ansible_distribution == 'Ubuntu' and ansible_distribution_version is version('24.04', '<')
+
+- name: install claude agent packages
+  become: true
+  apt:
+    name: "{{ claude_agent_packages + ['python' ~ claude_agent_python_version, 'python' ~ claude_agent_python_version ~ '-venv'] }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: create claude agent bin directory
+  become: true
+  file:
+    path: "{{ claude_agent_home }}/.local/bin"
+    state: directory
+    owner: "{{ claude_agent_user }}"
+    group: "{{ claude_agent_user }}"
+    mode: "0755"
+
+# The project's scripts are run as `python ...`
+- name: point python to python{{ claude_agent_python_version }} for the agent user
+  become: true
+  file:
+    src: "/usr/bin/python{{ claude_agent_python_version }}"
+    dest: "{{ claude_agent_home }}/.local/bin/{{ item }}"
+    state: link
+    owner: "{{ claude_agent_user }}"
+    group: "{{ claude_agent_user }}"
+    follow: false
+  with_items:
+    - python
+    - python3
+
+- name: check google chrome
+  stat:
+    path: /usr/bin/google-chrome-stable
+  register: claude_agent_chrome_binary
+
+- name: install google chrome from Google's package
+  become: true
+  apt:
+    deb: "{{ claude_agent_chrome_bootstrap_deb_url }}"
+  when: not claude_agent_chrome_binary.stat.exists
+
+# Then updated from Google's repository, like any package
+- name: install google chrome
+  become: true
+  apt:
+    name: google-chrome-stable
+    state: present
+
+- name: create chrome policy directory
+  become: true
+  file:
+    path: /etc/opt/chrome/policies/managed
+    state: directory
+    mode: "0755"
+
+- name: disable heavy chrome extensions
+  become: true
+  copy:
+    content: "{{ {'ExtensionInstallBlocklist': claude_agent_chrome_blocked_extensions} | to_nice_json }}\n"
+    dest: /etc/opt/chrome/policies/managed/claude-agent.json
+    mode: "0644"
+
+- name: create novnc directory
+  become: true
+  file:
+    path: "{{ claude_agent_novnc_install_location }}/{{ claude_agent_novnc_version }}"
+    state: directory
+    mode: "0755"
+
+- name: check novnc
+  stat:
+    path: "{{ claude_agent_novnc_install_location }}/{{ claude_agent_novnc_version }}/vnc.html"
+  register: claude_agent_novnc_files
+
+- name: install novnc
+  when: not claude_agent_novnc_files.stat.exists
+  block:
+    - name: download novnc
+      become: true
+      get_url:
+        url: "https://github.com/novnc/noVNC/archive/refs/tags/v{{ claude_agent_novnc_version }}.tar.gz"
+        dest: "{{ claude_agent_novnc_install_location }}/novnc-{{ claude_agent_novnc_version }}.tar.gz"
+        checksum: "{{ claude_agent_novnc_checksum }}"
+        mode: "0644"
+
+    - name: extract novnc
+      become: true
+      unarchive:
+        src: "{{ claude_agent_novnc_install_location }}/novnc-{{ claude_agent_novnc_version }}.tar.gz"
+        dest: "{{ claude_agent_novnc_install_location }}/{{ claude_agent_novnc_version }}"
+        remote_src: true
+        extra_opts: ["--strip-components=1"]
+
+    - name: remove the downloaded novnc archive
+      become: true
+      file:
+        path: "{{ claude_agent_novnc_install_location }}/novnc-{{ claude_agent_novnc_version }}.tar.gz"
+        state: absent
+
+# http://<address>:<port>/ opens the client, connecting at once and scaled to the phone's screen
+- name: deploy novnc index
+  become: true
+  copy:
+    dest: "{{ claude_agent_novnc_install_location }}/{{ claude_agent_novnc_version }}/index.html"
+    mode: "0644"
+    content: |
+      <!DOCTYPE html>
+      <meta http-equiv="refresh" content="0; url=vnc.html?autoconnect=true&resize=scale&reconnect=true">

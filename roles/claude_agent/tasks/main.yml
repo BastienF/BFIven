@@ -1,0 +1,52 @@
+---
+
+- name: check that noVNC stays off the Internet
+  assert:
+    that:
+      - claude_agent_novnc_listen_address not in ['', '0.0.0.0', '::']
+      - claude_agent_novnc_listen_address != ansible_default_ipv4.address | default('')
+      - claude_agent_novnc_listen_address != ansible_default_ipv6.address | default('')
+    fail_msg: >-
+      claude_agent_novnc_listen_address must be the loopback or a VPN address, never a wildcard or a public address:
+      noVNC gives control of a Chrome logged into the shopping account.
+
+- name: check that the web front ends stay on the VPN, behind authentication
+  assert:
+    that:
+      - claude_agent_web_allowed_source_ranges | length > 0
+      - claude_agent_web_all_source_ranges | intersect(['0.0.0.0/0', '::/0']) | length == 0
+      - claude_agent_web_users | length > 0
+    fail_msg: >-
+      Web front ends start `claude -p` with the logged-in Chrome: set claude_agent_web_allowed_source_ranges to the
+      VPN network, keep the services' extra_allowed_source_ranges to fixed addresses and set claude_agent_web_users
+      to at least one account.
+  vars:
+    claude_agent_web_all_source_ranges: >-
+      {{ claude_agent_web_allowed_source_ranges
+         + claude_agent_web_services | map(attribute='extra_allowed_source_ranges', default=[]) | flatten }}
+  when: claude_agent_web_services | length > 0
+
+- name: check that the chrome debugging port can be enabled
+  assert:
+    that:
+      - claude_agent_chrome_profile_location != claude_agent_chrome_default_profile_location
+    fail_msg: "Chrome 136+ ignores --remote-debugging-port on its default profile directory"
+  when: claude_agent_chrome_debugging_port | string | length > 0
+
+# Chrome and Claude Code need ~2 GB: without swap, a peak would leave the host's other services short of memory.
+# Only the swap part of host_tuning: the rest (hostname, resolver) is meant for the VPS.
+- name: add swap
+  include_role:
+    name: host_tuning
+    tasks_from: swap.yml
+
+- import_tasks: user.yml
+- import_tasks: packages.yml
+- import_tasks: projects.yml
+- import_tasks: display.yml
+- import_tasks: claude_code.yml
+- import_tasks: playwright.yml
+- import_tasks: rtk.yml
+- import_tasks: chrome_profile.yml
+- import_tasks: services.yml
+- import_tasks: web.yml
