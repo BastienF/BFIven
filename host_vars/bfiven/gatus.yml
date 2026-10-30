@@ -1,0 +1,82 @@
+---
+
+gatus_install_mode: "docker"
+
+gatus_certificate_condition: "[CERTIFICATE_EXPIRATION] > 336h"
+
+# Dashboard for the VPN only. Public requests cannot be filtered by address: OVH's NAT hides their source.
+# The VPS (/etc/hosts) and the ad-blocking DNS (blocky_custom_dns) resolve it to bfiven's tunnel address.
+gatus_traefik_allowed_source_ranges:
+  - "10.100.0.0/24"
+
+gatus_endpoints:
+  # Containers checked directly on the Docker network: catches what the public URLs cannot see (databases, workers)
+  - name: "Vaultwarden"
+    group: "bfiven containers"
+    url: "http://{{ password_manager_container }}:80/alive"
+    conditions: ["[STATUS] == 200"]
+    urgent: true
+  - name: "Mattermost"
+    group: "bfiven containers"
+    url: "http://{{ mattermost_app_container_name }}:8065/api/v4/system/ping"
+    conditions: ["[STATUS] == 200", "[BODY].status == OK"]
+  - name: "Mattermost database"
+    group: "bfiven containers"
+    url: "tcp://mattermost_db_18.6-alpine3.24:5432"
+    conditions: ["[CONNECTED] == true"]
+  - name: "Immich"
+    group: "bfiven containers"
+    url: "http://immich_server:2283/api/server/ping"
+    conditions: ["[STATUS] == 200", "[BODY].res == pong"]
+  - name: "Immich machine learning"
+    group: "bfiven containers"
+    url: "http://immich_machine_learning:3003/ping"
+    conditions: ["[STATUS] == 200"]
+  - name: "Immich database"
+    group: "bfiven containers"
+    url: "tcp://immich_db:5432"
+    conditions: ["[CONNECTED] == true"]
+  - name: "Immich Redis"
+    group: "bfiven containers"
+    url: "tcp://immich_redis:6379"
+    conditions: ["[CONNECTED] == true"]
+  - name: "PhotoPrism"
+    group: "bfiven containers"
+    url: "http://photoprism_app:80/api/v1/status"
+    conditions: ["[STATUS] == 200", "[BODY].status == operational"]
+  - name: "PhotoPrism database"
+    group: "bfiven containers"
+    url: "tcp://photoprism_db:3306"
+    conditions: ["[CONNECTED] == true"]
+  # Behind authentication: 401 means up
+  - name: "Syncthing"
+    group: "bfiven containers"
+    url: "http://{{ syncthing_container_name }}:8384/"
+    conditions: ["[STATUS] == any(200, 401)"]
+
+  # The VPS
+  - name: "bfivenus ping"
+    group: "bfivenus"
+    url: "icmp://10.100.0.1"
+    conditions: ["[CONNECTED] == true"]
+    urgent: true
+  # Through the tunnel: the provider's firewall only opens the public SSH port to some source addresses
+  - name: "bfivenus SSH"
+    group: "bfivenus"
+    url: "tcp://10.100.0.1:22"
+    conditions: ["[CONNECTED] == true"]
+  - name: "Ad-blocking DNS (DoT)"
+    group: "bfivenus"
+    url: "tls://dns.{{ domain }}:853"
+    conditions: ["[CONNECTED] == true", "{{ gatus_certificate_condition }}"]
+    urgent: true
+  # DoH query for example.com (A record)
+  - name: "Ad-blocking DNS (DoH)"
+    group: "bfivenus"
+    url: "https://dns.{{ domain }}/dns-query?dns=AAABAAABAAAAAAAAB2V4YW1wbGUDY29tAAABAAE"
+    conditions: ["[STATUS] == 200", "{{ gatus_certificate_condition }}"]
+  # The other Gatus: watches the watcher
+  - name: "Gatus bfivenus"
+    group: "bfivenus"
+    url: "http://10.100.0.1:8080/health"
+    conditions: ["[STATUS] == 200", "[BODY].status == UP"]

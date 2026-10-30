@@ -1,0 +1,44 @@
+# {{ ansible_managed }}
+{% set ns = namespace(endpoints=[], external_endpoints=[]) %}
+{% for endpoint in gatus_endpoints %}
+{%   set alert = {'type': 'ntfy', 'failure-threshold': endpoint.failure_threshold | default(gatus_alert_failure_threshold)} %}
+{%   if endpoint.urgent | default(false) %}
+{%     set alert = alert | combine({'provider-override': {'priority': gatus_ntfy_urgent_priority}}) %}
+{%   endif %}
+{%   set gatus_fields = endpoint | dict2items | rejectattr('key', 'in', ['urgent', 'failure_threshold']) | items2dict %}
+{%   set ns.endpoints = ns.endpoints + [{'interval': gatus_interval} | combine(gatus_fields, {'alerts': [alert]})] %}
+{% endfor %}
+{% for endpoint in gatus_external_endpoints %}
+{%   set alert = {'type': 'ntfy', 'failure-threshold': endpoint.failure_threshold | default(gatus_alert_failure_threshold)} %}
+{%   if endpoint.urgent | default(false) %}
+{%     set alert = alert | combine({'provider-override': {'priority': gatus_ntfy_urgent_priority}}) %}
+{%   endif %}
+{%   set ns.external_endpoints = ns.external_endpoints + [{
+       'name': endpoint.name,
+       'group': endpoint.group,
+       'token': gatus_secrets.PushTokens[gatus_external_endpoint_keys[loop.index0]],
+       'heartbeat': {'interval': endpoint.heartbeat},
+       'alerts': [alert]}] %}
+{% endfor %}
+
+storage:
+  type: sqlite
+  path: {{ '/data' if gatus_install_mode == 'docker' else gatus_data_location }}/data.db
+
+web:
+  port: {{ gatus_port }}
+
+ui:
+  title: "Gatus {{ inventory_hostname }}"
+  header: "{{ inventory_hostname }}"
+
+alerting:
+  ntfy:
+    url: "{{ gatus_ntfy_url }}"
+    topic: "{{ gatus_secrets.NtfyTopic }}"
+    priority: {{ gatus_ntfy_priority }}
+    default-alert:
+      success-threshold: {{ gatus_alert_success_threshold }}
+      send-on-resolved: true
+
+{{ {'endpoints': ns.endpoints, 'external-endpoints': ns.external_endpoints} | to_nice_yaml(indent=2, sort_keys=false) }}

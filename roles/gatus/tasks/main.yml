@@ -1,0 +1,53 @@
+---
+
+# Binary mode runs as this user (the container runs as root)
+- name: create gatus system user
+  become: true
+  user:
+    name: "{{ gatus_user }}"
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false
+  when: gatus_install_mode == 'binary'
+
+- set_fact:
+    gatus_files_group: "{{ gatus_user if gatus_install_mode == 'binary' else 'root' }}"
+
+- name: create gatus directories
+  become: true
+  file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ gatus_files_group }}"
+    mode: "0750"
+  with_items:
+    - { path: "{{ gatus_conf_location }}", owner: root }
+    - { path: "{{ gatus_data_location }}", owner: "{{ gatus_files_group }}" }
+
+- name: add hosts entries
+  become: true
+  lineinfile:
+    path: /etc/hosts
+    regexp: '\s{{ item.name | regex_escape }}$'
+    line: "{{ item.address }}\t{{ item.name }}"
+  with_items: "{{ gatus_hosts_entries }}"
+
+- import_tasks: secrets.yml
+
+- name: deploy gatus config
+  become: true
+  template:
+    src: config.yaml.j2
+    dest: "{{ gatus_conf_location }}/config.yaml"
+    owner: root
+    group: "{{ gatus_files_group }}"
+    mode: "0640"
+  notify: restart gatus
+  no_log: true
+
+- include_tasks: install_binary.yml
+  when: gatus_install_mode == 'binary'
+
+- include_tasks: run_container.yml
+  when: gatus_install_mode == 'docker'

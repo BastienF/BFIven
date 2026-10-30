@@ -1,0 +1,39 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# Pushes disk usage to Gatus: one endpoint for the warning threshold, one for the critical one
+set -u
+
+warnings=()
+criticals=()
+
+check_mount() {
+  local path="$1" warning="$2" critical="$3" usage
+  if ! mountpoint --quiet "$path"; then
+    criticals+=("$path not mounted")
+    return
+  fi
+  usage=$(df --output=pcent "$path" | tail -1 | tr -dc '0-9')
+  if [ "$usage" -ge "$critical" ]; then
+    criticals+=("$path ${usage}%")
+  elif [ "$usage" -ge "$warning" ]; then
+    warnings+=("$path ${usage}%")
+  fi
+}
+
+{% for mount in gatus_push_disk_mounts %}
+check_mount "{{ mount.path }}" {{ mount.warning }} {{ mount.critical }}
+{% endfor %}
+
+if [ -z "${criticals[*]:-}" ]; then
+  {{ gatus_push_helper_location }} {{ gatus_push_disk_critical_key }} true
+else
+  {{ gatus_push_helper_location }} {{ gatus_push_disk_critical_key }} false "${criticals[*]}"
+fi
+
+# Critical mounts are over the warning threshold too
+problems=("${criticals[@]}" "${warnings[@]}")
+if [ -z "${problems[*]:-}" ]; then
+  {{ gatus_push_helper_location }} {{ gatus_push_disk_key }} true
+else
+  {{ gatus_push_helper_location }} {{ gatus_push_disk_key }} false "${problems[*]}"
+fi

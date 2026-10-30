@@ -1,0 +1,15 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# Reports a check result to the Gatus external endpoint <key>.
+# Usage: gatus-push <key> <true|false> [error message]
+set -eu
+
+key="$1"
+success="$2"
+error="${3:-}"
+
+curl --silent --show-error --fail --max-time 10 --get --request POST \
+  --header "Authorization: Bearer $(cat "{{ gatus_push_tokens_location }}/${key}.token")" \
+  --data "success=${success}" \
+  --data-urlencode "error=${error}" \
+  "{{ gatus_push_url }}/api/v1/endpoints/${key}/external"

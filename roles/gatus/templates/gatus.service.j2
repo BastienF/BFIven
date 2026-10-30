@@ -1,0 +1,35 @@
+# {{ ansible_managed }}
+
+[Unit]
+Description=Gatus health monitoring and alerting
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User={{ gatus_user }}
+Group={{ gatus_user }}
+Environment=GATUS_CONFIG_PATH={{ gatus_conf_location }}/config.yaml
+WorkingDirectory={{ gatus_data_location }}
+ExecStart={{ gatus_binary_location }}
+Restart=on-failure
+RestartSec=5s
+
+# ICMP checks
+AmbientCapabilities=CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_RAW
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths={{ gatus_data_location }}
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+LockPersonality=true
+SystemCallArchitectures=native
+MemoryMax=200M
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,92 @@
+---
+
+- name: create gatus install directory
+  become: true
+  file:
+    path: "{{ gatus_install_location }}/{{ gatus_version }}"
+    state: directory
+    mode: "0755"
+
+- name: check gatus binary
+  stat:
+    path: "{{ gatus_install_location }}/{{ gatus_version }}/gatus"
+  register: gatus_binary
+
+- name: download gatus binary
+  when: not gatus_binary.stat.exists
+  block:
+    - name: get an anonymous registry token
+      uri:
+        url: "https://auth.docker.io/token?service=registry.docker.io&scope=repository:{{ gatus_image }}:pull"
+        return_content: true
+      register: gatus_registry_token
+      no_log: true
+
+    # The registry redirects to a signed CDN URL, which must be fetched without the registry token
+    - name: locate the gatus binary layer
+      uri:
+        url: "https://registry-1.docker.io/v2/{{ gatus_image }}/blobs/{{ gatus_binary_layer_digest }}"
+        headers:
+          Authorization: "Bearer {{ gatus_registry_token.json.token }}"
+        follow_redirects: none
+        status_code: [307]
+      register: gatus_binary_layer
+      no_log: true
+
+    - name: download the gatus binary layer
+      become: true
+      get_url:
+        url: "{{ gatus_binary_layer.location }}"
+        dest: "{{ gatus_install_location }}/{{ gatus_version }}/layer.tar.gz"
+        checksum: "{{ gatus_binary_layer_digest }}"
+        mode: "0644"
+
+    - name: extract gatus binary
+      become: true
+      unarchive:
+        src: "{{ gatus_install_location }}/{{ gatus_version }}/layer.tar.gz"
+        dest: "{{ gatus_install_location }}/{{ gatus_version }}"
+        remote_src: true
+        include:
+          - gatus
+
+    - name: remove the downloaded layer
+      become: true
+      file:
+        path: "{{ gatus_install_location }}/{{ gatus_version }}/layer.tar.gz"
+        state: absent
+
+- name: install gatus binary
+  become: true
+  file:
+    src: "{{ gatus_install_location }}/{{ gatus_version }}/gatus"
+    dest: "{{ gatus_binary_location }}"
+    state: link
+  notify: restart gatus
+
+- name: deploy gatus service
+  become: true
+  template:
+    src: gatus.service.j2
+    dest: /etc/systemd/system/gatus.service
+    mode: "0644"
+  notify: restart gatus
+
+# The dashboard and the push API are only reachable through WireGuard
+- name: open gatus port to the VPN
+  become: true
+  template:
+    src: gatus.nft.j2
+    dest: "{{ nftables_firewall_include_location }}/gatus.nft"
+    mode: "0644"
+    validate: "/usr/sbin/nft -c -f %s"
+  notify: reload nftables
+  when: nftables_firewall_include_location is defined
+
+- name: enable gatus
+  become: true
+  systemd:
+    name: gatus
+    state: started
+    enabled: true
+    daemon_reload: true

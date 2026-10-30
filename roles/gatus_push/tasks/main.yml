@@ -1,0 +1,50 @@
+---
+
+- name: check that the server shared its push tokens
+  assert:
+    that:
+      - hostvars[gatus_push_server].gatus_secrets is defined
+    fail_msg: "Run run_gatus.yml without -l: its first play reads the push tokens on {{ gatus_push_server }}"
+
+- name: create push tokens directory
+  become: true
+  file:
+    path: "{{ gatus_push_tokens_location }}"
+    state: directory
+    mode: "0700"
+
+# Only the tokens of this host's endpoints
+- name: deploy push tokens
+  become: true
+  copy:
+    content: "{{ item.value }}"
+    dest: "{{ gatus_push_tokens_location }}/{{ item.key }}.token"
+    mode: "0600"
+  with_dict: "{{ hostvars[gatus_push_server].gatus_secrets.PushTokens }}"
+  when: item.key.startswith(inventory_hostname ~ '_')
+  loop_control:
+    label: "{{ item.key }}"
+  no_log: true
+
+- name: deploy push helper
+  become: true
+  template:
+    src: gatus-push.sh.j2
+    dest: "{{ gatus_push_helper_location }}"
+    mode: "0755"
+
+- name: deploy disk health script
+  become: true
+  template:
+    src: push-disk-health.sh.j2
+    dest: "{{ gatus_push_disk_script_location }}"
+    mode: "0755"
+
+- name: push disk health every 5 minutes
+  become: true
+  cron:
+    name: push disk health
+    minute: "*/5"
+    user: root
+    job: "{{ gatus_push_disk_script_location }} > /dev/null 2>&1"
+    cron_file: gatus-push-disk

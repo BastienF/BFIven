@@ -1,0 +1,67 @@
+---
+
+gatus_version: "5.37.0"
+
+# "binary": systemd service (small hosts without Docker, e.g. the VPS)
+# "docker": container on the Docker network, so that it can check the other containers directly
+gatus_install_mode: "docker"
+
+gatus_container_name: "gatus"
+gatus_image: "twinproduction/gatus"
+gatus_container_restart_policy: "always"
+gatus_docker_networks:
+  - name: "{{ bfiven_docker_network }}"
+
+# Binary mode: the linux/amd64 image is FROM scratch and its first layer only holds the gatus binary.
+# It is downloaded straight from the registry by digest (which is also its sha256): update it with gatus_version.
+gatus_binary_layer_digest: "sha256:d20e87e818dd75483ecec9715e39c3d693b4b2b4113709780613d4bb410c0731"
+gatus_user: "gatus"
+gatus_install_location: "/opt/gatus"
+gatus_binary_location: "/usr/local/bin/gatus"
+
+gatus_port: "8080"
+gatus_conf_location: "{{ '/data/containers/' ~ gatus_container_name ~ '/conf' if gatus_install_mode == 'docker' else '/etc/gatus' }}"
+gatus_data_location: "{{ '/data/containers/' ~ gatus_container_name ~ '/data' if gatus_install_mode == 'docker' else '/var/lib/gatus' }}"
+
+# The host persisting the secrets shared by every Gatus (ntfy topic, push tokens of the external endpoints).
+# The others read them from its facts: run run_gatus.yml without -l.
+gatus_secrets_host: "bfivenus"
+gatus_secrets_file_location: "{{ gatus_conf_location }}/secrets.json"
+
+gatus_ntfy_url: "https://ntfy.sh"
+gatus_ntfy_priority: 4
+# Alerts flagged "urgent" get this one, which gets through the phone's "Do not disturb"
+gatus_ntfy_urgent_priority: 5
+gatus_alert_failure_threshold: 3
+gatus_alert_success_threshold: 2
+
+gatus_interval: "1m"
+
+# Gatus endpoints (https://github.com/TwiN/gatus#endpoints), defined per host in host_vars, with two extra keys:
+#  - urgent: true -> notified with gatus_ntfy_urgent_priority
+#  - failure_threshold: overrides gatus_alert_failure_threshold
+gatus_endpoints: []
+# Pushed by scripts (see the gatus_push role): {name, group, heartbeat, urgent, failure_threshold}
+gatus_external_endpoints: []
+
+# /etc/hosts entries, e.g. to reach the other Gatus' dashboard through WireGuard: [{name, address}]
+gatus_hosts_entries: []
+
+# Docker mode: dashboard published through Traefik, restricted to these source ranges
+gatus_domain: "status.{{ domain }}"
+gatus_traefik_allowed_source_ranges: []
+gatus_traefik_labels:
+  - key: "traefik.http.routers.{{ gatus_container_name }}.rule"
+    value: "Host(`{{ gatus_domain }}`)"
+  - key: "traefik.http.services.{{ gatus_container_name }}.loadbalancer.server.port"
+    value: "{{ gatus_port }}"
+  - key: "traefik.http.routers.{{ gatus_container_name }}.tls"
+    value: "true"
+  - key: "traefik.http.routers.{{ gatus_container_name }}.tls.certresolver"
+    value: "lteResolver"
+  - key: "traefik.http.middlewares.{{ gatus_container_name }}-allowlist.ipallowlist.sourcerange"
+    value: "{{ gatus_traefik_allowed_source_ranges | join(',') }}"
+  - key: "traefik.http.routers.{{ gatus_container_name }}.middlewares"
+    value: "{{ gatus_container_name }}-allowlist"
+  - key: "traefik.enable"
+    value: "true"

@@ -1,0 +1,13 @@
+---
+
+# Run without -l: the VPS play persists the shared secrets (ntfy topic, push tokens),
+# the bfiven play reads them, and the VPS facts, from its hostvars
+- hosts: vps
+  roles:
+    - role: nftables_firewall
+    - role: gatus
+
+- hosts: server
+  roles:
+    - role: gatus
+    - role: gatus_push

@@ -1,0 +1,18 @@
+---
+
+# Gatus receiving the pushes: the VPS, through WireGuard, so that silence is noticed even when this host is down
+gatus_push_server: "bfivenus"
+gatus_push_url: "http://10.100.0.1:8080"
+
+gatus_push_helper_location: "/usr/local/sbin/gatus-push"
+gatus_push_tokens_location: "/etc/gatus-push"
+gatus_push_disk_script_location: "/usr/local/sbin/push-disk-health"
+
+# Usage thresholds in %. A missing mount point counts as critical (e.g. the encrypted /data not unlocked after a reboot).
+gatus_push_disk_mounts:
+  - { path: "/", warning: 85, critical: 95 }
+  - { path: "/data", warning: 90, critical: 95 }
+
+# Keys of the matching gatus_external_endpoints on the server
+gatus_push_disk_key: "{{ inventory_hostname }}_disk"
+gatus_push_disk_critical_key: "{{ inventory_hostname }}_disk-critical"

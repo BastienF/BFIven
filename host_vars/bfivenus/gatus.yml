@@ -1,0 +1,79 @@
+---
+
+gatus_install_mode: "binary"
+
+# bfiven's dashboard is only reachable through WireGuard
+gatus_hosts_entries:
+  - { name: "status.{{ domain }}", address: "10.100.0.2" }
+
+# Traefik renews its certificates 30 days before expiry: below 14 days, renewal is failing
+gatus_certificate_condition: "[CERTIFICATE_EXPIRATION] > 336h"
+
+# bfiven seen from outside: public URLs go through DNS, OVH's NAT, Traefik and the certificate
+gatus_endpoints:
+  - name: "Vaultwarden"
+    group: "bfiven public"
+    url: "https://passwords.{{ domain }}/alive"
+    conditions: ["[STATUS] == 200", "{{ gatus_certificate_condition }}"]
+    urgent: true
+  - name: "Mattermost"
+    group: "bfiven public"
+    url: "https://slack.{{ domain }}/api/v4/system/ping"
+    conditions: ["[STATUS] == 200", "[BODY].status == OK", "{{ gatus_certificate_condition }}"]
+  - name: "Immich"
+    group: "bfiven public"
+    url: "https://immich.{{ domain }}/api/server/ping"
+    conditions: ["[STATUS] == 200", "[BODY].res == pong", "{{ gatus_certificate_condition }}"]
+  - name: "PhotoPrism"
+    group: "bfiven public"
+    url: "https://photoprism.{{ domain }}/api/v1/status"
+    conditions: ["[STATUS] == 200", "[BODY].status == operational", "{{ gatus_certificate_condition }}"]
+  # Behind authentication: 401 means up
+  - name: "Syncthing"
+    group: "bfiven public"
+    url: "https://files.{{ domain }}/"
+    conditions: ["[STATUS] == 401", "{{ gatus_certificate_condition }}"]
+  # The other Gatus: watches the watcher
+  - name: "Gatus bfiven"
+    group: "bfiven public"
+    url: "https://status.{{ domain }}/health"
+    conditions: ["[STATUS] == 200", "[BODY].status == UP", "{{ gatus_certificate_condition }}"]
+
+  # Through WireGuard: tells "bfiven is down" from "its web stack is down"
+  - name: "bfiven ping"
+    group: "bfiven tunnel"
+    url: "icmp://10.100.0.2"
+    conditions: ["[CONNECTED] == true"]
+    urgent: true
+  - name: "bfiven SSH"
+    group: "bfiven tunnel"
+    url: "tcp://10.100.0.2:22"
+    conditions: ["[CONNECTED] == true"]
+
+# Pushed by bfiven (gatus_push role and restic backup script): alert when failing, or when they stop coming
+gatus_external_endpoints:
+  - name: "disk"
+    group: "bfiven"
+    heartbeat: "15m"
+    failure_threshold: 1
+  - name: "disk critical"
+    group: "bfiven"
+    heartbeat: "15m"
+    failure_threshold: 1
+    urgent: true
+  - name: "backup"
+    group: "bfiven"
+    heartbeat: "26h"
+    failure_threshold: 1
+    urgent: true
+  # Chrome's exit tunnel (run_coursator_sortie.yml). Two misses: the instance reboots at night for its updates.
+  - name: "sortie"
+    group: "bfiven"
+    heartbeat: "15m"
+    failure_threshold: 2
+  # Chrome seen through bfiven's own address: Leclerc's anti-bot could block it for good
+  - name: "sortie fuite"
+    group: "bfiven"
+    heartbeat: "15m"
+    failure_threshold: 1
+    urgent: true

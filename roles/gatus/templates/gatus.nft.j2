@@ -1,0 +1,5 @@
+# {{ ansible_managed }}
+# Included at the end of /etc/nftables.conf: appends to its inet filter chains
+
+# Gatus dashboard and push API, from the WireGuard tunnel only
+add rule inet filter input iifname "{{ wireguard_server_interface | default('wg0') }}" tcp dport {{ gatus_port }} accept

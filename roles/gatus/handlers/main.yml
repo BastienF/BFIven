@@ -1,0 +1,15 @@
+---
+
+- name: restart gatus
+  set_fact:
+    gatus_docker_restart: true
+  when: gatus_install_mode == 'docker'
+
+- name: restart gatus service
+  become: true
+  systemd:
+    name: gatus
+    state: restarted
+    daemon_reload: true
+  when: gatus_install_mode == 'binary'
+  listen: restart gatus
