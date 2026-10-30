@@ -1,0 +1,15 @@
+# {{ ansible_managed }}
+# Named 00- so it is read first: sshd keeps the first value it reads, and cloud-init's
+# 50-cloud-init.conf turns root and password logins back on
+
+PermitRootLogin no
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PubkeyAuthentication yes
+AuthenticationMethods publickey
+AllowUsers {{ ssh_hardening_allow_users | join(' ') }}
+
+MaxAuthTries 3
+LoginGraceTime 30
+X11Forwarding no
+AllowAgentForwarding no

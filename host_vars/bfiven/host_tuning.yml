@@ -1,0 +1,4 @@
+---
+
+# 7.9 GB of RAM, ~2 GB free: Chrome and Claude Code (coursator role) would leave nothing for a peak
+host_tuning_swap_size_mb: 4096

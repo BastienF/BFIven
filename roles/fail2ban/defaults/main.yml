@@ -1,0 +1,12 @@
+---
+
+fail2ban_maxretry: 5
+fail2ban_findtime: "10m"
+fail2ban_bantime: "1h"
+# Repeat offenders get exponentially longer bans, up to this
+fail2ban_bantime_max: "1w"
+# Never banned, e.g. a monitoring probe that opens and closes connections all day long
+fail2ban_ignore_ip: ["127.0.0.1/8", "::1"]
+# "normal": failed logins. "aggressive" also counts connections closed before authentication, which a TCP
+# health check makes every minute; with key-only logins it adds nothing.
+fail2ban_sshd_mode: "normal"

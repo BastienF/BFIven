@@ -1,0 +1,11 @@
+---
+
+host_tuning_hostname: "{{ inventory_hostname }}"
+
+# 1 GB swap: the VPS only has ~850 MB of RAM
+host_tuning_swap_file_location: "/swapfile"
+host_tuning_swap_size_mb: 1024
+host_tuning_swappiness: 10
+
+# Cap on the persistent journal, the disk is small
+host_tuning_journal_max_use: "100M"

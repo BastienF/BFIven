@@ -1,0 +1,10 @@
+---
+
+- name: deploy sshd hardening config
+  become: true
+  template:
+    src: 00-hardening.conf.j2
+    dest: /etc/ssh/sshd_config.d/00-hardening.conf
+    mode: "0644"
+    validate: "/usr/sbin/sshd -t -f %s"
+  notify: reload ssh

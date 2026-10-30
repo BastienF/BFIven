@@ -1,0 +1,25 @@
+---
+
+# python3-systemd: Debian 13 has no auth.log, fail2ban reads the journal
+- name: install fail2ban
+  become: true
+  apt:
+    name:
+      - fail2ban
+      - python3-systemd
+    state: present
+
+- name: configure fail2ban
+  become: true
+  template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    mode: "0644"
+  notify: restart fail2ban
+
+- name: enable fail2ban service
+  become: true
+  service:
+    name: fail2ban
+    state: started
+    enabled: true

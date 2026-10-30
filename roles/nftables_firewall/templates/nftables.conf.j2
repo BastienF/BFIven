@@ -1,0 +1,44 @@
+#!/usr/sbin/nft -f
+# {{ ansible_managed }}
+
+# Replaces only this table (no "flush ruleset"), so that fail2ban's table survives a reload
+table inet filter
+delete table inet filter
+
+table inet filter {
+    chain input {
+        type filter hook input priority filter; policy drop;
+
+        ct state established,related accept
+        ct state invalid drop
+        iif "lo" accept
+
+        # IPv6 neighbor discovery needs ICMPv6; ping is kept for monitoring
+        meta l4proto icmp accept
+        meta l4proto ipv6-icmp accept
+
+        # DHCP lease renewals
+        udp sport 67 udp dport 68 accept
+
+{% if nftables_firewall_tcp_ports %}
+        tcp dport { {{ nftables_firewall_tcp_ports | join(', ') }} } accept
+{% endif %}
+{% if nftables_firewall_udp_ports %}
+        udp dport { {{ nftables_firewall_udp_ports | join(', ') }} } accept
+{% endif %}
+    }
+
+    chain forward {
+        type filter hook forward priority filter; policy drop;
+
+        ct state established,related accept
+        ct state invalid drop
+    }
+
+    chain output {
+        type filter hook output priority filter; policy accept;
+    }
+}
+
+# Rules added by other roles (e.g. wireguard_server), appended to the chains above
+include "{{ nftables_firewall_include_location }}/*.nft"

@@ -1,0 +1,7 @@
+---
+
+# Run once on a fresh VPS, as root, before vps_setup.yml disables root login:
+# ansible-playbook -i inventories/prod.yml vps_bootstrap.yml -l bfivenus -e ansible_user=root
+- hosts: vps
+  roles:
+    - role: admin_user

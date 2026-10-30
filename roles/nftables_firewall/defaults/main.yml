@@ -1,0 +1,9 @@
+---
+
+# Everything else inbound is dropped
+nftables_firewall_tcp_ports:
+  - 22
+nftables_firewall_udp_ports: []
+
+# Other roles drop their own *.nft rules here, then notify "reload nftables"
+nftables_firewall_include_location: "/etc/nftables.d"

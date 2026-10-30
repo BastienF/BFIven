@@ -1,0 +1,30 @@
+---
+
+- name: install nftables
+  become: true
+  apt:
+    name: nftables
+    state: present
+
+- name: create nftables include directory
+  become: true
+  file:
+    path: "{{ nftables_firewall_include_location }}"
+    state: directory
+    mode: "0755"
+
+- name: deploy nftables ruleset
+  become: true
+  template:
+    src: nftables.conf.j2
+    dest: /etc/nftables.conf
+    mode: "0755"
+    validate: "/usr/sbin/nft -c -f %s"
+  notify: reload nftables
+
+- name: enable nftables service
+  become: true
+  service:
+    name: nftables
+    state: started
+    enabled: true

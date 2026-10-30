@@ -1,0 +1,4 @@
+---
+
+# bfiven, through the tunnel: its Gatus checks this SSH port every minute, and Ansible connects from it
+fail2ban_ignore_ip: ["127.0.0.1/8", "::1", "10.100.0.2"]

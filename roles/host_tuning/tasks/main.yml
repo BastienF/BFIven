@@ -1,0 +1,64 @@
+---
+
+- name: check for cloud-init
+  stat:
+    path: /etc/cloud/cloud.cfg.d
+  register: cloud_init_conf_dir
+
+# Otherwise cloud-init resets the provider's hostname at every boot
+- name: keep cloud-init from resetting the hostname
+  become: true
+  copy:
+    content: "preserve_hostname: true\n"
+    dest: /etc/cloud/cloud.cfg.d/99_zz_preserve_hostname.cfg
+    mode: "0644"
+  when: cloud_init_conf_dir.stat.exists
+
+# Before renaming the host, so that sudo keeps resolving it
+- name: resolve the hostname locally
+  become: true
+  lineinfile:
+    path: /etc/hosts
+    regexp: '^127\.0\.1\.1\s'
+    line: "127.0.1.1\t{{ host_tuning_hostname }}"
+    insertafter: '^127\.0\.0\.1\s'
+
+- name: set hostname
+  become: true
+  hostname:
+    name: "{{ host_tuning_hostname }}"
+    use: systemd
+
+- import_tasks: swap.yml
+
+- name: create journald and resolved drop-in directories
+  become: true
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  with_items:
+    - /etc/systemd/journald.conf.d
+    - /etc/systemd/resolved.conf.d
+
+- name: cap journal size
+  become: true
+  copy:
+    content: |
+      [Journal]
+      SystemMaxUse={{ host_tuning_journal_max_use }}
+    dest: /etc/systemd/journald.conf.d/90-size.conf
+    mode: "0644"
+  notify: restart journald
+
+# systemd-resolved otherwise answers LLMNR (port 5355) on the public interface
+- name: disable LLMNR and multicast DNS
+  become: true
+  copy:
+    content: |
+      [Resolve]
+      LLMNR=no
+      MulticastDNS=no
+    dest: /etc/systemd/resolved.conf.d/90-no-multicast.conf
+    mode: "0644"
+  notify: restart resolved

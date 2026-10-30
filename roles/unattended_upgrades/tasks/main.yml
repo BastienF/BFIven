@@ -1,0 +1,31 @@
+---
+
+- name: install unattended-upgrades
+  become: true
+  apt:
+    name: unattended-upgrades
+    state: present
+
+- name: enable daily unattended upgrades
+  become: true
+  copy:
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    mode: "0644"
+
+# Keeps Debian's 50unattended-upgrades (stable + security origins) and only overrides cleanup and reboot
+- name: configure unattended upgrades
+  become: true
+  template:
+    src: 52unattended-upgrades-local.j2
+    dest: /etc/apt/apt.conf.d/52unattended-upgrades-local
+    mode: "0644"
+
+- name: enable unattended upgrades service
+  become: true
+  service:
+    name: unattended-upgrades
+    state: started
+    enabled: true

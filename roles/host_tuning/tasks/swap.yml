@@ -1,0 +1,33 @@
+---
+
+- name: create swap file
+  become: true
+  command: "fallocate -l {{ host_tuning_swap_size_mb }}M {{ host_tuning_swap_file_location }}"
+  args:
+    creates: "{{ host_tuning_swap_file_location }}"
+  register: swap_file
+
+- name: restrict swap file permissions
+  become: true
+  file:
+    path: "{{ host_tuning_swap_file_location }}"
+    mode: "0600"
+
+- name: format and enable swap file
+  become: true
+  shell: "mkswap {{ host_tuning_swap_file_location }} && swapon {{ host_tuning_swap_file_location }}"
+  when: swap_file is changed
+
+- name: enable swap file at boot
+  become: true
+  lineinfile:
+    path: /etc/fstab
+    regexp: '^{{ host_tuning_swap_file_location }}\s'
+    line: "{{ host_tuning_swap_file_location }} none swap sw 0 0"
+
+- name: set swappiness
+  become: true
+  sysctl:
+    name: vm.swappiness
+    value: "{{ host_tuning_swappiness }}"
+    sysctl_file: /etc/sysctl.d/90-host-tuning.conf

@@ -1,0 +1,19 @@
+# {{ ansible_managed }}
+
+[DEFAULT]
+backend = systemd
+banaction = nftables-multiport
+banaction_allports = nftables-allports
+ignoreip = {{ fail2ban_ignore_ip | join(' ') }}
+maxretry = {{ fail2ban_maxretry }}
+findtime = {{ fail2ban_findtime }}
+bantime = {{ fail2ban_bantime }}
+bantime.increment = true
+bantime.maxtime = {{ fail2ban_bantime_max }}
+
+[sshd]
+enabled = true
+mode = {{ fail2ban_sshd_mode }}
+# Whatever the process logging (sshd, or sshd-session / sshd-auth since OpenSSH 9.8): every message of the unit.
+# "+" means "or" in a journal match.
+journalmatch = _SYSTEMD_UNIT=ssh.service + _SYSTEMD_UNIT=sshd.service

@@ -1,0 +1,6 @@
+---
+
+# Needed for kernel and libc security updates to take effect
+unattended_upgrades_automatic_reboot: true
+# Host clock is UTC: 05:30 / 06:30 in Paris
+unattended_upgrades_reboot_time: "04:30"

@@ -1,0 +1,12 @@
+---
+
+# Connects as the admin user created by vps_bootstrap.yml
+- hosts: vps
+  roles:
+    - role: base_setup
+    - role: host_tuning
+    - role: unattended_upgrades
+    - role: nftables_firewall
+    - role: fail2ban
+    # Last: root and password logins stay available until everything else went through
+    - role: ssh_hardening

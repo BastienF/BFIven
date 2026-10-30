@@ -9,6 +9,13 @@ all:
           domain: "moi.ovh"
           syncthing_user: "ansible"
           vpn_port: 11194
+    # Small bare-metal-style VPS (no Docker): WireGuard exit + monitoring of bfiven
+    vps:
+      hosts:
+        bfivenus:
+          is_prod: true
+          domain: "moi.ovh"
+          ansible_user: "ansible"
     local:
       hosts:
         localhost:

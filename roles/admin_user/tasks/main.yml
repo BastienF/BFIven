@@ -1,0 +1,32 @@
+---
+
+- name: install sudo
+  become: true
+  apt:
+    name: sudo
+    state: present
+    update_cache: true
+
+- name: create admin user
+  become: true
+  user:
+    name: "{{ admin_user_name }}"
+    shell: /bin/bash
+    groups: sudo
+    append: true
+
+- name: set admin user authorized keys
+  become: true
+  authorized_key:
+    user: "{{ admin_user_name }}"
+    key: "{{ admin_user_authorized_keys | join('\n') }}"
+    exclusive: true
+
+# The account has no password (key-only login), so sudo cannot ask for one
+- name: allow admin user to sudo without password
+  become: true
+  copy:
+    content: "{{ admin_user_name }} ALL=(ALL) NOPASSWD:ALL\n"
+    dest: "/etc/sudoers.d/{{ admin_user_name }}"
+    mode: "0440"
+    validate: "/usr/sbin/visudo -cf %s"

@@ -1,0 +1,15 @@
+---
+
+# The template validation only checks the drop-in alone: check the full config before reloading
+- name: check full sshd config
+  become: true
+  command: /usr/sbin/sshd -t
+  changed_when: false
+  listen: reload ssh
+
+- name: reload sshd
+  become: true
+  service:
+    name: ssh
+    state: reloaded
+  listen: reload ssh

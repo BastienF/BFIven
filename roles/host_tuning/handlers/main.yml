@@ -1,0 +1,13 @@
+---
+
+- name: restart journald
+  become: true
+  service:
+    name: systemd-journald
+    state: restarted
+
+- name: restart resolved
+  become: true
+  service:
+    name: systemd-resolved
+    state: restarted

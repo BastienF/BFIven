@@ -1,0 +1,6 @@
+---
+
+admin_user_name: "ansible"
+
+admin_user_authorized_keys:
+  - "{{ lookup('file', '~/.ssh/id_ed25519.pub') }}"

@@ -1,0 +1,8 @@
+---
+
+# Reload (nft -f) rather than restart: stopping the service flushes the whole ruleset, fail2ban's table included
+- name: reload nftables
+  become: true
+  service:
+    name: nftables
+    state: reloaded
