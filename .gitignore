@@ -11,3 +11,9 @@ certificates_ovpn
 *.crt
 *.key
 *.ovpn
+# WireGuard client configs (private keys), downloaded by wireguard_server
+/wireguard_peers/
+/secrets
+# Ansible Vault files (encrypted AWS keys): the repository is public
+/vault/
+__pycache__/
