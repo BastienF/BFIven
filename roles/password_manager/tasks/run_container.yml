@@ -12,7 +12,7 @@
   become: true
   docker_container:
     name: "{{ password_manager_container_name }}"
-    image: "vaultwarden/server:1.32.4-alpine"
+    image: "vaultwarden/server:1.37.3-alpine"
     state: "{{ password_manager_docker_state | default('started') }}"
     restart: "{{ password_manager_docker_restart | default(false) | bool }}"
     networks: "{{ password_manager_docker_networks }}"
