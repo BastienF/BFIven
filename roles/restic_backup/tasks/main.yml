@@ -23,12 +23,65 @@
     mode: 0700
     path: /usr/local/sbin/restic
 
-- name: deploy openstack login script
+- name: create restic conf directory
+  become: true
+  file:
+    path: "{{ restic_backup_conf_location }}"
+    state: directory
+    mode: "0700"
+
+- name: deploy openstack credentials
   become: true
   template:
-    mode: 0700
     src: openstack-login.sh.j2
-    dest: /usr/local/sbin/openstack-login.sh
+    dest: "{{ restic_backup_conf_location }}/openstack.env"
+    mode: "0600"
+  when: restic_backup_openstack_user_password is defined
+  no_log: true
+
+- name: deploy repository password
+  become: true
+  copy:
+    content: "{{ restic_backup_repo_pwd }}"
+    dest: "{{ restic_backup_conf_location }}/password"
+    mode: "0600"
+  when: restic_backup_repo_pwd is defined
+  no_log: true
+
+# Former versions of this role wrote the secrets into the scripts themselves: move them, on the host
+- name: move secrets out of the former scripts
+  become: true
+  shell: |
+    set -e
+    umask 077
+    sed -n "s/^REPO_PWD='--password-command \"echo \(.*\)\"'$/\1/p" /usr/local/sbin/restic-backup.sh \
+      | tr -d '\n' > {{ restic_backup_conf_location }}/password
+    test -s {{ restic_backup_conf_location }}/password
+    cp /usr/local/sbin/openstack-login.sh {{ restic_backup_conf_location }}/openstack.env
+  args:
+    creates: "{{ restic_backup_conf_location }}/password"
+    removes: /usr/local/sbin/openstack-login.sh
+  no_log: true
+
+- name: check restic secrets
+  become: true
+  stat:
+    path: "{{ restic_backup_conf_location }}/{{ item }}"
+  with_items:
+    - openstack.env
+    - password
+  register: restic_backup_secrets
+
+- name: require restic secrets
+  assert:
+    that: restic_backup_secrets.results | rejectattr('stat.exists') | list | length == 0
+    fail_msg: "Missing {{ restic_backup_conf_location }}/openstack.env or password: define restic_backup_openstack_* and restic_backup_repo_pwd"
+
+- name: remove former openstack login script
+  become: true
+  file:
+    path: /usr/local/sbin/openstack-login.sh
+    state: absent
 
 - name: deploy restic backup script
   become: true

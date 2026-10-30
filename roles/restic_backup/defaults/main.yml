@@ -10,4 +10,18 @@ restic_backup_retention_policy: "--keep-daily 3 --keep-weekly 3 --keep-monthly 3
 restic_backup_cron_log : "/var/log/restic_backup.log"
 restic_backup_cron_err_log : "/var/log/restic_backup.err.log"
 
-restic_backup_paths_to_backup : ["/data/containers/mattermost", "/data/containers/bitwarden", "/data/containers/mastodon", "/data/gallery"]
+restic_backup_paths_to_backup : ["/data/containers/mattermost", "/data/containers/bitwarden", "/data/gallery", "/data/containers/immich", "/var/lib/wind_alert", "/home/claude/projects/coursator/data", "/home/claude/projects/pas"]
+# Rebuildable, or not consistent when copied live: Immich dumps its database every night
+# into library/backups (at 02:00, before the backup), which is backed up instead of the raw database files
+restic_backup_excludes:
+  - "/data/containers/immich/data/db"
+  - "/data/containers/immich/library/thumbs"
+  - "/data/containers/immich/library/encoded-video"
+
+# Root-only secrets: OpenStack credentials (openstack.env) and repository password.
+# Templated from restic_backup_openstack_* / restic_backup_repo_pwd when defined (e.g. in a gitignored *secret.yml),
+# otherwise they must already be on the host.
+restic_backup_conf_location: "/etc/restic"
+
+# Gatus external endpoint reporting each run (see the gatus_push role), if its helper is installed
+restic_backup_gatus_push_key: "{{ inventory_hostname }}_backup"

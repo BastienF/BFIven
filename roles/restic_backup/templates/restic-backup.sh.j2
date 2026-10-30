@@ -1,4 +1,5 @@
 #!/bin/bash
+# {{ ansible_managed }}
 
 export PATH=$PATH:/usr/local/sbin
 echo "$(tail -1000 {{ restic_backup_cron_log }})" > {{ restic_backup_cron_log }}
@@ -9,17 +10,26 @@ exec 1>> {{ restic_backup_cron_log }}
 
 echo "=== Start backup at $(date) ==="
 
-source /usr/local/sbin/openstack-login.sh
+source {{ restic_backup_conf_location }}/openstack.env
+export RESTIC_REPOSITORY="swift:{{ restic_backup_openstack_container_name }}:/{{ restic_backup_repo_name }}"
+export RESTIC_PASSWORD_FILE="{{ restic_backup_conf_location }}/password"
 
-REPO="swift:{{ restic_backup_openstack_container_name }}:/{{ restic_backup_repo_name }}"
-REPO_PWD='--password-command "echo {{ restic_backup_repo_pwd }}"'
-RESTIC_CMD="restic --verbose $REPO_PWD -r $REPO"
+failures=()
 
-eval $RESTIC_CMD snapshots || eval $RESTIC_CMD init
+restic snapshots > /dev/null || restic init || failures+=("repository")
 {% for restic_backup_path in restic_backup_paths_to_backup %}
-eval $RESTIC_CMD backup {{ restic_backup_path }}
+restic --verbose backup {% for exclude in restic_backup_excludes %}--exclude "{{ exclude }}" {% endfor %}"{{ restic_backup_path }}" || failures+=("{{ restic_backup_path }}")
 {% endfor %}
 
-eval $RESTIC_CMD forget {{ restic_backup_retention_policy }} --prune
+restic forget {{ restic_backup_retention_policy }} --prune || failures+=("forget")
 
-echo "=== End backup at $(date) ==="
+echo "=== End backup at $(date) (failures: ${failures[*]:-none}) ==="
+
+# Gatus alerts when a run fails, or when no run is reported
+if command -v gatus-push > /dev/null; then
+  if [ -z "${failures[*]:-}" ]; then
+    gatus-push {{ restic_backup_gatus_push_key }} true
+  else
+    gatus-push {{ restic_backup_gatus_push_key }} false "failed: ${failures[*]}"
+  fi
+fi
