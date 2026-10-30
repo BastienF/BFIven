@@ -1,0 +1,55 @@
+---
+
+# Créteil
+wind_alert_latitude: 48.7904
+wind_alert_longitude: 2.4556
+wind_alert_timezone: "Europe/Paris"
+# Météo-France AROME (1.3 km) for the next ~2 days, then ARPEGE
+wind_alert_model: "meteofrance_seamless"
+wind_alert_click_url: "https://meteofrance.com/previsions-meteo-france/creteil/94000"
+
+wind_alert_horizon_hours: 36
+# Two windy periods separated by more than this many hours are distinct episodes, each notified on its own
+wind_alert_episode_gap_hours: 6
+# A new alert is sent when the forecast pushes an episode's end beyond the announced end by more than this
+wind_alert_extension_tolerance_hours: 2
+# No notification between these hours (local time); what happens overnight is reported at the end of the quiet period
+wind_alert_quiet_hours_start: 23
+wind_alert_quiet_hours_end: 7
+
+# Ascending order. A level is reached when the mean wind OR the gusts reach its threshold (km/h).
+# priority / tags follow ntfy: https://docs.ntfy.sh/publish/#message-priority
+wind_alert_levels:
+  - name: "ça souffle"
+    speed: 25
+    gust: 45
+    priority: 3
+    tags: ["dash"]
+    advice: "Penser aux objets légers (coussins, nappes, petits pots)."
+  - name: "vent fort"
+    speed: 30
+    gust: 55
+    priority: 4
+    tags: ["dash", "warning"]
+    advice: "Ranger le léger, fermer le parasol."
+  - name: "tout sécuriser"
+    speed: 35
+    gust: 65
+    priority: 5
+    tags: ["rotating_light"]
+    advice: "Tout sécuriser : parasol couché, mobilier attaché ou rentré, pots lourds à l'abri."
+
+wind_alert_ntfy_url: "https://ntfy.sh"
+
+wind_alert_user: "wind_alert"
+wind_alert_script_location: "/usr/local/bin/wind-alert"
+wind_alert_conf_location: "/etc/wind_alert"
+wind_alert_config_file_location: "{{ wind_alert_conf_location }}/config.json"
+wind_alert_secrets_file_location: "{{ wind_alert_conf_location }}/secrets.json"
+wind_alert_state_location: "/var/lib/wind_alert"
+wind_alert_log_file_location: "{{ wind_alert_state_location }}/wind-alert.log"
+# Hourly wind kept forever (~9,000 rows a year) and sent notifications; backed up by restic_backup
+wind_alert_history_file_location: "{{ wind_alert_state_location }}/history.sqlite3"
+
+# Run with -e wind_alert_send_test=true to receive a test notification at the end of the play
+wind_alert_send_test: false

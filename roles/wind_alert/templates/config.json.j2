@@ -1,0 +1,17 @@
+{{ {
+  "latitude": wind_alert_latitude,
+  "longitude": wind_alert_longitude,
+  "timezone": wind_alert_timezone,
+  "model": wind_alert_model,
+  "click_url": wind_alert_click_url,
+  "horizon_hours": wind_alert_horizon_hours,
+  "episode_gap_hours": wind_alert_episode_gap_hours,
+  "extension_tolerance_hours": wind_alert_extension_tolerance_hours,
+  "quiet_hours_start": wind_alert_quiet_hours_start,
+  "quiet_hours_end": wind_alert_quiet_hours_end,
+  "levels": wind_alert_levels,
+  "ntfy_url": wind_alert_ntfy_url,
+  "ntfy_topic": secrets_json.NtfyTopic,
+  "state_file": wind_alert_state_location ~ "/state.json",
+  "history_file": wind_alert_history_file_location,
+} | to_nice_json(ensure_ascii=False) }}

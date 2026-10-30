@@ -1,0 +1,97 @@
+---
+
+- name: create wind alert system user
+  become: true
+  user:
+    name: "{{ wind_alert_user }}"
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false
+
+- name: create wind alert conf directory
+  become: true
+  file:
+    path: "{{ wind_alert_conf_location }}"
+    state: directory
+    owner: root
+    group: "{{ wind_alert_user }}"
+    mode: "0750"
+
+- name: create wind alert state directory
+  become: true
+  file:
+    path: "{{ wind_alert_state_location }}"
+    state: directory
+    owner: "{{ wind_alert_user }}"
+    group: "{{ wind_alert_user }}"
+    mode: "0750"
+
+- name: create a secrets file
+  become: true
+  copy:
+    force: false
+    content: "{}"
+    dest: "{{ wind_alert_secrets_file_location }}"
+    mode: "0600"
+
+- name: slurp secret file
+  become: true
+  slurp:
+    src: "{{ wind_alert_secrets_file_location }}"
+  register: slurped_secrets
+  no_log: true
+
+- set_fact:
+    secrets_json: "{{ slurped_secrets['content'] | b64decode | from_json }}"
+  no_log: true
+
+# The ntfy topic is public on ntfy.sh: its random name is what keeps it private
+- name: enrich secrets
+  set_fact:
+    secrets_json: "{{ secrets_json | combine({'NtfyTopic': 'bfiven-wind-' ~ lookup('password', '/dev/null length=32 chars=ascii_letters,digits')}) }}"
+  when: secrets_json.NtfyTopic is undefined
+  no_log: true
+
+- name: dump secrets file
+  become: true
+  copy:
+    content: "{{ secrets_json | to_nice_json }}"
+    dest: "{{ wind_alert_secrets_file_location }}"
+    mode: "0600"
+  no_log: true
+
+- name: deploy wind alert config
+  become: true
+  template:
+    src: config.json.j2
+    dest: "{{ wind_alert_config_file_location }}"
+    owner: root
+    group: "{{ wind_alert_user }}"
+    mode: "0640"
+  no_log: true
+
+- name: deploy wind alert script
+  become: true
+  copy:
+    src: wind-alert.py
+    dest: "{{ wind_alert_script_location }}"
+    mode: "0755"
+
+# Hourly: the script itself skips the quiet hours in local time, the host clock being UTC
+- name: add wind alert to crontab
+  become: true
+  cron:
+    name: wind alert
+    minute: "5"
+    user: "{{ wind_alert_user }}"
+    job: "{{ wind_alert_script_location }} {{ wind_alert_config_file_location }} >> {{ wind_alert_log_file_location }} 2>&1"
+    cron_file: wind-alert
+
+- name: send a test notification
+  become: true
+  command: "{{ wind_alert_script_location }} {{ wind_alert_config_file_location }} --test"
+  when: wind_alert_send_test | bool
+
+- name: show the ntfy subscription
+  debug:
+    msg: "In the ntfy Android app, subscribe to topic '{{ secrets_json.NtfyTopic }}' on server {{ wind_alert_ntfy_url }}"
