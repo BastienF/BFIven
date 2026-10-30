@@ -1,0 +1,14 @@
+# {{ ansible_managed }}
+
+[Interface]
+Address = {{ wireguard_server_address }}/{{ wireguard_server_network.split('/')[1] }}
+ListenPort = {{ wireguard_server_port }}
+PrivateKey = {{ wireguard_server_keys['server.key'] }}
+{% for peer in wireguard_server_peers %}
+
+[Peer]
+# {{ peer.name }}
+PublicKey = {{ wireguard_server_keys[peer.name ~ '.pub'] }}
+PresharedKey = {{ wireguard_server_keys[peer.name ~ '.psk'] }}
+AllowedIPs = {{ peer.address }}/32
+{% endfor %}

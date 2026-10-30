@@ -1,0 +1,146 @@
+---
+
+- set_fact:
+    wireguard_server_site_peers: "{{ wireguard_server_peers | selectattr('site', 'defined') | selectattr('site') | list }}"
+    wireguard_server_roaming_peers: "{{ wireguard_server_peers | rejectattr('site', 'defined') | list + wireguard_server_peers | selectattr('site', 'defined') | rejectattr('site') | list }}"
+
+- name: install wireguard
+  become: true
+  apt:
+    name:
+      - wireguard-tools
+      - qrencode
+    state: present
+
+- name: enable IPv4 forwarding
+  become: true
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    sysctl_file: /etc/sysctl.d/90-wireguard.conf
+
+- name: create wireguard directories
+  become: true
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0700"
+  with_items:
+    - "{{ wireguard_server_conf_location }}"
+    - "{{ wireguard_server_keys_location }}"
+    - "{{ wireguard_server_peer_configs_location }}"
+
+# Keys are generated once on the VPS and never leave it, except inside the peers' configs
+- name: generate key pairs
+  become: true
+  shell: "umask 077 && wg genkey | tee {{ item }}.key | wg pubkey > {{ item }}.pub"
+  args:
+    chdir: "{{ wireguard_server_keys_location }}"
+    creates: "{{ item }}.key"
+  with_items: "{{ ['server'] + wireguard_server_peers | map(attribute='name') | list }}"
+
+- name: generate peers' preshared keys
+  become: true
+  shell: "umask 077 && wg genpsk > {{ item }}.psk"
+  args:
+    chdir: "{{ wireguard_server_keys_location }}"
+    creates: "{{ item }}.psk"
+  with_items: "{{ wireguard_server_peers | map(attribute='name') | list }}"
+
+- name: read keys
+  become: true
+  slurp:
+    src: "{{ wireguard_server_keys_location }}/{{ item }}"
+  with_items: "{{ ['server.key', 'server.pub'] + wireguard_server_peers | map(attribute='name') | product(['.key', '.pub', '.psk']) | map('join') | list }}"
+  register: wireguard_server_slurped_keys
+  no_log: true
+
+- set_fact:
+    wireguard_server_keys: "{{ dict(wireguard_server_slurped_keys.results | map(attribute='item') | zip(wireguard_server_slurped_keys.results | map(attribute='content') | map('b64decode') | map('trim'))) }}"
+  no_log: true
+
+- name: deploy wireguard config
+  become: true
+  template:
+    src: wg.conf.j2
+    dest: "{{ wireguard_server_conf_location }}/{{ wireguard_server_interface }}.conf"
+    mode: "0600"
+  notify: restart wireguard
+  no_log: true
+
+- name: deploy peers' configs
+  become: true
+  template:
+    src: peer.conf.j2
+    dest: "{{ wireguard_server_peer_configs_location }}/{{ peer.name }}.conf"
+    mode: "0600"
+  with_items: "{{ wireguard_server_peers }}"
+  loop_control:
+    loop_var: peer
+    label: "{{ peer.name }}"
+  register: wireguard_server_peer_configs
+  no_log: true
+
+- name: remove outdated QR codes
+  become: true
+  file:
+    path: "{{ wireguard_server_peer_configs_location }}/{{ item.peer.name }}.png"
+    state: absent
+  with_items: "{{ wireguard_server_peer_configs.results }}"
+  loop_control:
+    label: "{{ item.peer.name }}"
+  when: item is changed
+
+- name: generate roaming clients' QR codes
+  become: true
+  command: "qrencode -r {{ item.name }}.conf -o {{ item.name }}.png"
+  args:
+    chdir: "{{ wireguard_server_peer_configs_location }}"
+    creates: "{{ item.name }}.png"
+  with_items: "{{ wireguard_server_roaming_peers }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: create local peer configs directory
+  delegate_to: localhost
+  file:
+    path: "{{ wireguard_server_local_peer_configs_location }}"
+    state: directory
+    mode: "0700"
+
+- name: download roaming clients' configs and QR codes
+  become: true
+  fetch:
+    src: "{{ wireguard_server_peer_configs_location }}/{{ item }}"
+    dest: "{{ wireguard_server_local_peer_configs_location }}/"
+    flat: true
+  with_items: "{{ wireguard_server_roaming_peers | map(attribute='name') | product(['.conf', '.png']) | map('join') | list }}"
+
+# Read by the wireguard_peer role, run on the site peers in the same playbook
+- name: read site peers' configs
+  become: true
+  slurp:
+    src: "{{ wireguard_server_peer_configs_location }}/{{ item.name }}.conf"
+  with_items: "{{ wireguard_server_site_peers }}"
+  register: wireguard_server_slurped_site_configs
+  no_log: true
+
+- set_fact:
+    wireguard_server_site_peer_configs: "{{ dict(wireguard_server_slurped_site_configs.results | map(attribute='item.name') | zip(wireguard_server_slurped_site_configs.results | map(attribute='content') | map('b64decode'))) }}"
+  no_log: true
+
+- name: deploy wireguard firewall rules
+  become: true
+  template:
+    src: wireguard.nft.j2
+    dest: "{{ nftables_firewall_include_location }}/wireguard.nft"
+    mode: "0644"
+    validate: "/usr/sbin/nft -c -f %s"
+  notify: reload nftables
+
+- name: enable wireguard
+  become: true
+  service:
+    name: "wg-quick@{{ wireguard_server_interface }}"
+    state: started
+    enabled: true

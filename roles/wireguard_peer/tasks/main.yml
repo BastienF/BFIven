@@ -1,0 +1,38 @@
+---
+
+- name: check that the server generated this peer's config
+  assert:
+    that:
+      - wireguard_peer_name in (hostvars[wireguard_peer_server].wireguard_server_site_peer_configs | default({}))
+    fail_msg: >-
+      No config for '{{ wireguard_peer_name }}' from '{{ wireguard_peer_server }}': run run_wireguard.yml without -l
+      (its first play generates the configs), and declare this peer with site: true in wireguard_server_peers.
+
+- name: install wireguard
+  become: true
+  apt:
+    name: wireguard-tools
+    state: present
+
+- name: create wireguard directory
+  become: true
+  file:
+    path: /etc/wireguard
+    state: directory
+    mode: "0700"
+
+- name: deploy wireguard config
+  become: true
+  copy:
+    content: "{{ hostvars[wireguard_peer_server].wireguard_server_site_peer_configs[wireguard_peer_name] }}"
+    dest: "/etc/wireguard/{{ wireguard_peer_interface }}.conf"
+    mode: "0600"
+  notify: restart wireguard peer
+  no_log: true
+
+- name: enable wireguard
+  become: true
+  service:
+    name: "wg-quick@{{ wireguard_peer_interface }}"
+    state: started
+    enabled: true

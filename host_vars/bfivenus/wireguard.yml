@@ -1,0 +1,18 @@
+---
+
+wireguard_server_peers:
+  # The other clients only reach bfiven's HTTPS (wireguard_server_site_tcp_ports); the phone and the PC also
+  # reach SSH and the agent's noVNC (claude_agent_novnc_allowed_sources in host_vars/bfiven/claude_agent.yml)
+  - name: "bfiven"
+    address: "10.100.0.2"
+    site: true
+  - name: "phone"
+    address: "10.100.0.10"
+    site_tcp_ports: [22, 6080]
+  - name: "pc"
+    address: "10.100.0.11"
+    site_tcp_ports: [22, 6080]
+  - name: "android_tv"
+    address: "10.100.0.12"
+  - name: "tablette"
+    address: "10.100.0.13"

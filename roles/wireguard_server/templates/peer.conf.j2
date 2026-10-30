@@ -1,0 +1,21 @@
+# {{ peer.name }}
+
+[Interface]
+PrivateKey = {{ wireguard_server_keys[peer.name ~ '.key'] }}
+Address = {{ peer.address }}/32
+{% if not peer.site | default(false) %}
+DNS = {{ wireguard_server_client_dns | join(', ') }}
+{% endif %}
+
+[Peer]
+PublicKey = {{ wireguard_server_keys['server.pub'] }}
+PresharedKey = {{ wireguard_server_keys[peer.name ~ '.psk'] }}
+Endpoint = {{ wireguard_server_endpoint }}:{{ wireguard_server_port }}
+{% if peer.site | default(false) %}
+AllowedIPs = {{ wireguard_server_network }}
+# Behind NAT: keeps the tunnel open so that the VPS and the roaming clients can reach this peer
+PersistentKeepalive = 25
+{% else %}
+# IPv6 too, so that it cannot leak outside the tunnel (the VPS has no public IPv6: it is dropped)
+AllowedIPs = 0.0.0.0/0, ::/0
+{% endif %}

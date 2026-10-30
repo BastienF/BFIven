@@ -1,0 +1,28 @@
+# {{ ansible_managed }}
+# Included at the end of /etc/nftables.conf: appends to its inet filter chains
+
+add rule inet filter input udp dport {{ wireguard_server_port }} accept
+{% if wireguard_server_roaming_peers %}
+
+# Roaming clients go out to the internet through the VPS...
+add rule inet filter forward iifname "{{ wireguard_server_interface }}" oifname "{{ wireguard_server_wan_interface }}" ip saddr { {{ wireguard_server_roaming_peers | map(attribute='address') | join(', ') }} } accept
+{% if wireguard_server_site_peers %}
+# ...and may open connections to some ports of the site peers (replies go through "ct state established"):
+# the ports every client may reach, plus each client's own ones; anything else is dropped by the chain's policy
+add rule inet filter forward iifname "{{ wireguard_server_interface }}" oifname "{{ wireguard_server_interface }}" ip saddr { {{ wireguard_server_roaming_peers | map(attribute='address') | join(', ') }} } ip daddr { {{ wireguard_server_site_peers | map(attribute='address') | join(', ') }} } tcp dport { {{ wireguard_server_site_tcp_ports | join(', ') }} } accept
+add rule inet filter forward iifname "{{ wireguard_server_interface }}" oifname "{{ wireguard_server_interface }}" ip saddr { {{ wireguard_server_roaming_peers | map(attribute='address') | join(', ') }} } ip daddr { {{ wireguard_server_site_peers | map(attribute='address') | join(', ') }} } icmp type echo-request accept
+{% for peer in wireguard_server_roaming_peers if peer.site_tcp_ports | default([]) %}
+add rule inet filter forward iifname "{{ wireguard_server_interface }}" oifname "{{ wireguard_server_interface }}" ip saddr {{ peer.address }} ip daddr { {{ wireguard_server_site_peers | map(attribute='address') | join(', ') }} } tcp dport { {{ peer.site_tcp_ports | join(', ') }} } accept
+{% endfor %}
+{% endif %}
+
+table ip wireguard_nat
+delete table ip wireguard_nat
+
+table ip wireguard_nat {
+    chain postrouting {
+        type nat hook postrouting priority srcnat; policy accept;
+        oifname "{{ wireguard_server_wan_interface }}" ip saddr {{ wireguard_server_network }} masquerade
+    }
+}
+{% endif %}

@@ -1,0 +1,11 @@
+---
+
+# Run without -l: the first play generates every key and peer config on the VPS,
+# the second one reads the site peers' configs from the VPS facts
+- hosts: vps
+  roles:
+    - role: wireguard_server
+
+- hosts: server
+  roles:
+    - role: wireguard_peer

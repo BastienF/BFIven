@@ -1,0 +1,7 @@
+---
+
+wireguard_peer_interface: "wg0"
+# Inventory name of the host running wireguard_server, which generates this peer's config
+wireguard_peer_server: "bfivenus"
+# Name of this peer in the server's wireguard_server_peers
+wireguard_peer_name: "{{ inventory_hostname }}"

@@ -1,0 +1,7 @@
+---
+
+- name: restart wireguard peer
+  become: true
+  service:
+    name: "wg-quick@{{ wireguard_peer_interface }}"
+    state: restarted

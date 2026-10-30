@@ -1,0 +1,31 @@
+---
+
+wireguard_server_interface: "wg0"
+# 443/udp gets through most filtered networks (it is also HTTP/3's port)
+wireguard_server_port: 443
+wireguard_server_network: "10.100.0.0/24"
+wireguard_server_address: "10.100.0.1"
+
+# Public address written in the peers' configs
+wireguard_server_endpoint: "{{ ansible_default_ipv4.address }}"
+wireguard_server_wan_interface: "{{ ansible_default_ipv4.interface }}"
+
+# Resolvers of the roaming clients, reached through the tunnel (Quad9)
+wireguard_server_client_dns:
+  - "9.9.9.9"
+  - "149.112.112.112"
+
+# Peers, defined per host in host_vars. Each one: {name, address, site (optional), site_tcp_ports (optional)}
+#  - roaming client (default): sends all its traffic through the VPS, and may reach the site peers on
+#    wireguard_server_site_tcp_ports, plus its own site_tcp_ports (e.g. SSH for an admin's device)
+#  - site: true, a server behind NAT (e.g. bfiven): keeps the tunnel open, only routes the tunnel network,
+#    accepts connections from the roaming clients but cannot open any towards them
+wireguard_server_peers: []
+# Ports of the site peers that every roaming client may reach (ping too): the services published by Traefik
+wireguard_server_site_tcp_ports: [80, 443]
+
+wireguard_server_conf_location: "/etc/wireguard"
+wireguard_server_keys_location: "{{ wireguard_server_conf_location }}/keys"
+wireguard_server_peer_configs_location: "{{ wireguard_server_conf_location }}/peers"
+# Roaming clients' configs and QR codes are downloaded here (gitignored)
+wireguard_server_local_peer_configs_location: "{{ playbook_dir }}/wireguard_peers/{{ inventory_hostname }}"
