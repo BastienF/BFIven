@@ -1,0 +1,87 @@
+---
+
+- meta: flush_handlers
+
+- name: Create network
+  become: true
+  docker_network:
+    name: "{{ item.name }}"
+  with_items: "{{ immich_docker_networks }}"
+
+- name: Start or restart immich db container
+  become: true
+  docker_container:
+    name: "{{ immich_db_container_name }}"
+    image: "{{ immich_db_image }}"
+    shm_size: "128m"
+    security_opts:
+      - "no-new-privileges:true"
+    pids_limit: 200
+    state: "{{ immich_docker_state | default('started') }}"
+    restart: "{{ immich_db_docker_restart | default(false) | bool }}"
+    networks: "{{ immich_docker_networks }}"
+    restart_policy: "{{ immich_container_restart_policy }}"
+    volumes:
+      - "{{ immich_db_data_location }}:/var/lib/postgresql/data"
+    env:
+      POSTGRES_USER: "{{ immich_db_user }}"
+      POSTGRES_PASSWORD: "{{ secrets_json.PostgresPassword }}"
+      POSTGRES_DB: "{{ immich_db_name }}"
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+
+- name: Start or restart immich redis container
+  become: true
+  docker_container:
+    name: "{{ immich_redis_container_name }}"
+    image: "valkey/valkey:{{ immich_redis_image_tag }}"
+    security_opts:
+      - "no-new-privileges:true"
+    pids_limit: 100
+    state: "{{ immich_docker_state | default('started') }}"
+    restart: "{{ immich_redis_docker_restart | default(false) | bool }}"
+    networks: "{{ immich_docker_networks }}"
+    restart_policy: "{{ immich_container_restart_policy }}"
+
+- name: Start or restart immich machine learning container
+  become: true
+  docker_container:
+    name: "{{ immich_machine_learning_container_name }}"
+    image: "ghcr.io/immich-app/immich-machine-learning:{{ immich_version }}"
+    security_opts:
+      - "no-new-privileges:true"
+    pids_limit: 200
+    state: "{{ immich_docker_state | default('started') }}"
+    restart: "{{ immich_ml_docker_restart | default(false) | bool }}"
+    networks: "{{ immich_docker_networks }}"
+    restart_policy: "{{ immich_container_restart_policy }}"
+    volumes:
+      - "{{ immich_ml_cache_location }}:/cache"
+    env:
+      TZ: "{{ immich_env_timezone }}"
+
+- name: Start or restart immich server container
+  become: true
+  docker_container:
+    name: "{{ immich_server_container_name }}"
+    image: "ghcr.io/immich-app/immich-server:{{ immich_version }}"
+    security_opts:
+      - "no-new-privileges:true"
+    pids_limit: 200
+    state: "{{ immich_docker_state | default('started') }}"
+    restart: "{{ immich_server_docker_restart | default(false) | bool }}"
+    networks: "{{ immich_docker_networks }}"
+    restart_policy: "{{ immich_container_restart_policy }}"
+    volumes:
+      - "{{ immich_library_location }}:/data"
+      - "/etc/localtime:/etc/localtime:ro"
+    env:
+      TZ: "{{ immich_env_timezone }}"
+      DB_HOSTNAME: "{{ immich_db_container_name }}"
+      DB_PORT: "5432"
+      DB_USERNAME: "{{ immich_db_user }}"
+      DB_PASSWORD: "{{ secrets_json.PostgresPassword }}"
+      DB_DATABASE_NAME: "{{ immich_db_name }}"
+      REDIS_HOSTNAME: "{{ immich_redis_container_name }}"
+      REDIS_PORT: "6379"
+      IMMICH_MACHINE_LEARNING_URL: "http://{{ immich_machine_learning_container_name }}:3003"
+    labels: "{{ immich_traefik_labels | items2dict }}"

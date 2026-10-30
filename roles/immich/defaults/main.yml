@@ -1,0 +1,53 @@
+---
+
+# Name of the immich docker containers
+immich_db_container_name: "immich_db"
+immich_redis_container_name: "immich_redis"
+immich_server_container_name: "immich_server"
+immich_machine_learning_container_name: "immich_machine_learning"
+
+immich_db_user: "immich"
+immich_db_name: "immich"
+
+immich_root_location: "/data/containers/immich"
+
+# Dedicated photo library (kept separate from photoprism_gallery_location: Immich
+# reorganizes uploaded files into its own folder structure, so sharing a library
+# between the two apps would let them fight over the same files)
+immich_library_location: "{{ immich_root_location }}/library"
+
+# Path on the host filesystem where will be the immich conf file
+immich_conf_location: "{{ immich_root_location }}/conf"
+
+# Path on the host filesystem where will be the immich data
+immich_data_location: "{{ immich_root_location }}/data"
+immich_db_data_location: "{{ immich_data_location }}/db"
+immich_ml_cache_location: "{{ immich_data_location }}/model-cache"
+
+immich_docker_networks:
+  - name: "{{ bfiven_docker_network }}"
+
+immich_secrets_file_location: "{{ immich_conf_location }}/secrets.json"
+
+immich_container_restart_policy: "always"
+
+immich_env_timezone: "Europe/Paris"
+
+immich_version: "v3.2.1"
+immich_db_image: "ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0"
+immich_redis_image_tag: "9"
+
+immich_domain: "immich.{{ domain }}"
+immich_server_port: "2283"
+
+immich_traefik_labels:
+  - key: "traefik.http.routers.{{ immich_server_container_name }}.rule"
+    value: "Host(`{{ immich_domain }}`)"
+  - key: "traefik.http.services.{{ immich_server_container_name }}.loadbalancer.server.port"
+    value: "{{ immich_server_port }}"
+  - key: "traefik.http.routers.{{ immich_server_container_name }}.tls"
+    value: "true"
+  - key: "traefik.http.routers.{{ immich_server_container_name }}.tls.certresolver"
+    value: "lteResolver"
+  - key: "traefik.enable"
+    value: "true"

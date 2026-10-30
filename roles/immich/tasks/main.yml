@@ -1,0 +1,46 @@
+---
+
+- name: create immich local directories
+  become: true
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: true
+  with_items:
+    - "{{ immich_db_data_location }}"
+    - "{{ immich_ml_cache_location }}"
+    - "{{ immich_library_location }}"
+    - "{{ immich_conf_location }}"
+
+- name: create a secrets file
+  become: true
+  copy:
+    force: false
+    content: "{}"
+    dest: "{{ immich_secrets_file_location }}"
+    mode: "0600"
+
+- name: slurp secret file
+  become: true
+  slurp:
+    src: "{{ immich_secrets_file_location }}"
+  register: slurped_secrets
+
+- set_fact:
+   secrets_json: "{{ slurped_secrets['content'] | b64decode | from_json }}"
+
+- name: enrich secrets
+  set_fact:
+      secrets_json: "{{ secrets_json | combine( {item: lookup('password', '/dev/null length=48 chars=ascii_letters,digits') } ) }}"
+  when: secrets_json[item] is undefined
+  with_items:
+    - "PostgresPassword"
+
+- name: dump secrets file
+  become: true
+  copy:
+    content: "{{ secrets_json | to_nice_json }}"
+    dest: "{{ immich_secrets_file_location }}"
+    mode: "0600"
+
+- import_tasks: run_container.yml
